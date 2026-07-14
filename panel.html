@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Panel · Itinerancias</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Mis itinerancias</h1>
+      <p id="usuarioInfo" class="muted"></p>
+    </div>
+
+    <nav>
+      <a class="btn" href="nueva-itinerancia.html">Nueva propuesta</a>
+      <button id="btnLogout" class="btn peligro">Salir</button>
+    </nav>
+  </header>
+
+  <main class="contenedor ancho">
+    <section class="card">
+      <h2>Propuestas</h2>
+      <p class="muted">
+        Aquí aparecen tus borradores, propuestas pendientes, rechazadas y publicadas.
+      </p>
+
+      <div id="listaPropuestas" class="lista"></div>
+      <p id="msg" class="msg"></p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

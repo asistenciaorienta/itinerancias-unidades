@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Nueva propuesta · Itinerancias</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Nueva propuesta de itinerancia</h1>
+      <p class="muted">La propuesta quedará pendiente de validación.</p>
+    </div>
+
+    <nav>
+      <a class="btn secundario" href="panel.html">Volver</a>
+      <button id="btnLogout" class="btn peligro">Salir</button>
+    </nav>
+  </header>
+
+  <main class="contenedor ancho">
+    <section class="card">
+      <form id="formNuevaItinerancia">
+        <label>Tipo de propuesta</label>
+        <select id="tipo" required>
+          <option value="NUEVA">Nueva itinerancia</option>
+          <option value="MODIFICACION">Modificación de itinerancia existente</option>
+          <option value="BAJA">Baja de itinerancia</option>
+        </select>
+
+        <label>Título</label>
+        <input type="text" id="titulo" required>
+
+        <label>Descripción</label>
+        <textarea id="descripcion" rows="4"></textarea>
+
+        <label>Municipio</label>
+        <input type="text" id="municipio">
+
+        <label>Dirección / lugar de realización</label>
+        <input type="text" id="direccion">
+
+        <label>Horario</label>
+        <input type="text" id="horario" placeholder="Ej.: martes de 10:00 a 12:00">
+
+        <label>Frecuencia</label>
+        <input type="text" id="frecuencia" placeholder="Ej.: semanal, mensual, puntual...">
+
+        <div class="grid2">
+          <div>
+            <label>Fecha de inicio</label>
+            <input type="date" id="fechaInicio">
+          </div>
+
+          <div>
+            <label>Fecha de fin</label>
+            <input type="date" id="fechaFin">
+          </div>
+        </div>
+
+        <label>Persona de contacto</label>
+        <input type="text" id="contacto">
+
+        <label>Teléfono</label>
+        <input type="text" id="telefono">
+
+        <label>Email de contacto</label>
+        <input type="email" id="emailContacto">
+
+        <label>Observaciones públicas</label>
+        <textarea id="observacionesPublicas" rows="3"></textarea>
+
+        <label>Observaciones internas para Dirección Provincial</label>
+        <textarea id="observacionesUnidad" rows="3"></textarea>
+
+        <div class="acciones">
+          <button type="button" id="btnGuardarBorrador" class="secundario">Guardar borrador</button>
+          <button type="submit">Enviar a validación</button>
+        </div>
+      </form>
+
+      <p id="msg" class="msg"></p>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
