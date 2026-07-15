@@ -9,6 +9,24 @@ function mostrarMsg(texto, error = false) {
   msg.className = error ? "msg error" : "msg ok";
 }
 
+function normalizarTexto(v = "") {
+  return String(v || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function entidadesCoinciden(a, b) {
+  const na = normalizarTexto(a);
+  const nb = normalizarTexto(b);
+
+  if (!na || !nb) return false;
+
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+
 async function obtenerSesion() {
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) throw error;
@@ -35,10 +53,7 @@ async function obtenerConvocatoriaVigente() {
     .limit(1)
     .maybeSingle();
 
-  if (error) {
-    console.error(error);
-    throw error;
-  }
+  if (error) throw error;
 
   if (!data) {
     throw new Error("No hay ninguna convocatoria vigente disponible.");
@@ -116,55 +131,79 @@ async function solicitarAcceso(payload) {
   if (form) form.reset();
 }
 
-async function cargarPanel() {
-  const perfil = await obtenerPerfil();
-  if (!perfil) return;
+async function cargarItineranciasPublicadasEntidad(convocatoriaId, unidadNombre) {
+  const { data, error } = await supabaseClient
+    .from("itinerancias_publicadas")
+    .select("*")
+    .eq("convocatoria_id", convocatoriaId)
+    .eq("activa", true)
+    .order("municipio", { ascending: true })
+    .order("entidad", { ascending: true });
 
-  let convocatoria = null;
+  if (error) throw error;
 
-  try {
-    convocatoria = await obtenerConvocatoriaVigente();
-  } catch (err) {
-    console.error(err);
-    mostrarMsg("No se ha podido detectar la convocatoria vigente.", true);
-  }
+  return (data || []).filter(i => entidadesCoinciden(i.entidad, unidadNombre));
+}
 
-  const unidadNombre = perfil.unidades?.nombre || "Unidad sin asignar";
-
-  const info = $("usuarioInfo");
-  if (info) {
-    const convocatoriaTxt = convocatoria?.nombre ? ` · ${convocatoria.nombre}` : "";
-    info.textContent = `${perfil.nombre || perfil.email} · ${unidadNombre}${convocatoriaTxt}`;
-  }
-
-  let query = supabaseClient
+async function cargarPropuestasEntidad(convocatoriaId) {
+  const { data, error } = await supabaseClient
     .from("itinerancias_propuestas")
     .select("*")
+    .eq("convocatoria_id", convocatoriaId)
     .order("created_at", { ascending: false });
 
-  if (convocatoria?.id) {
-    query = query.eq("convocatoria_id", convocatoria.id);
-  }
+  if (error) throw error;
 
-  const { data, error } = await query;
+  return data || [];
+}
 
-  const lista = $("listaPropuestas");
+function renderItineranciasPublicadas(lista, unidadNombre) {
+  const cont = $("listaPublicadas");
+  if (!cont) return;
 
-  if (error) {
-    console.error(error);
-    if (lista) lista.innerHTML = "";
-    mostrarMsg("No se han podido cargar tus propuestas: " + error.message, true);
+  if (!lista.length) {
+    cont.innerHTML = `
+      <p class="muted">
+        No se han encontrado itinerancias publicadas asociadas a ${escapeHtml(unidadNombre)}.
+      </p>
+    `;
     return;
   }
 
-  if (!lista) return;
+  cont.innerHTML = lista.map(i => `
+    <article class="item">
+      <div>
+        <h3>${escapeHtml(i.titulo || i.entidad || "Itinerancia")}</h3>
+        <p class="muted">
+          ${escapeHtml(i.municipio || "")}
+          ${i.dias ? " · " + escapeHtml(i.dias) : ""}
+        </p>
+        <p>
+          ${escapeHtml(i.direccion || "")}
+          ${i.telefono ? " · Tel. " + escapeHtml(i.telefono) : ""}
+        </p>
+        <p class="muted">
+          ${escapeHtml(i.tecnico_orienta || i.contacto || "")}
+          ${i.colectivo ? " · " + escapeHtml(i.colectivo) : ""}
+        </p>
+      </div>
+      <button class="btn" onclick="crearPropuestaModificacion('${escapeHtml(i.id)}')">
+        Solicitar modificación
+      </button>
+    </article>
+  `).join("");
+}
 
-  if (!data.length) {
-    lista.innerHTML = `<p class="muted">Todavía no tienes propuestas para la convocatoria vigente.</p>`;
+function renderPropuestas(lista) {
+  const listaCont = $("listaPropuestas");
+  if (!listaCont) return;
+
+  if (!lista.length) {
+    listaCont.innerHTML = `<p class="muted">Todavía no tienes propuestas para la convocatoria vigente.</p>`;
     return;
   }
 
-  lista.innerHTML = data.map(p => `
+  listaCont.innerHTML = lista.map(p => `
     <article class="item">
       <div>
         <h3>${escapeHtml(p.titulo || "Sin título")}</h3>
@@ -178,6 +217,48 @@ async function cargarPanel() {
       </span>
     </article>
   `).join("");
+}
+
+let perfilActual = null;
+let convocatoriaActual = null;
+let publicadasActuales = [];
+
+async function cargarPanel() {
+  const perfil = await obtenerPerfil();
+  if (!perfil) return;
+
+  perfilActual = perfil;
+
+  try {
+    convocatoriaActual = await obtenerConvocatoriaVigente();
+  } catch (err) {
+    console.error(err);
+    mostrarMsg("No se ha podido detectar la convocatoria vigente.", true);
+    return;
+  }
+
+  const unidadNombre = perfil.unidades?.nombre || "Unidad sin asignar";
+
+  const info = $("usuarioInfo");
+  if (info) {
+    info.textContent = `${perfil.nombre || perfil.email} · ${unidadNombre} · ${convocatoriaActual.nombre}`;
+  }
+
+  try {
+    const [publicadas, propuestas] = await Promise.all([
+      cargarItineranciasPublicadasEntidad(convocatoriaActual.id, unidadNombre),
+      cargarPropuestasEntidad(convocatoriaActual.id)
+    ]);
+
+    publicadasActuales = publicadas;
+
+    renderItineranciasPublicadas(publicadas, unidadNombre);
+    renderPropuestas(propuestas);
+
+  } catch (error) {
+    console.error(error);
+    mostrarMsg("No se han podido cargar los datos: " + error.message, true);
+  }
 }
 
 function datosFormularioItinerancia(estado) {
@@ -248,6 +329,54 @@ async function guardarPropuesta(estado) {
   setTimeout(() => {
     window.location.href = "panel.html";
   }, 900);
+}
+
+async function crearPropuestaModificacion(idPublicada) {
+  if (!perfilActual || !convocatoriaActual) {
+    mostrarMsg("No se ha podido cargar tu perfil o la convocatoria.", true);
+    return;
+  }
+
+  const original = publicadasActuales.find(i => String(i.id) === String(idPublicada));
+
+  if (!original) {
+    mostrarMsg("No se ha encontrado la itinerancia seleccionada.", true);
+    return;
+  }
+
+  const payload = {
+    tipo: "MODIFICACION",
+    estado: "BORRADOR",
+    titulo: original.titulo || original.entidad || "Modificación de itinerancia",
+    descripcion: original.descripcion || null,
+    municipio: original.municipio || null,
+    direccion: original.direccion || null,
+    horario: original.horario || original.dias || null,
+    frecuencia: original.frecuencia || original.dias || null,
+    fecha_inicio: original.fecha_inicio || null,
+    fecha_fin: original.fecha_fin || null,
+    contacto: original.contacto || original.tecnico_orienta || null,
+    telefono: original.telefono || null,
+    email: original.email || null,
+    observaciones_publicas: original.observaciones_publicas || null,
+    observaciones_unidad: "Propuesta creada a partir de una itinerancia publicada para solicitar modificación.",
+    unidad_id: perfilActual.unidad_id,
+    creada_por: perfilActual.id,
+    convocatoria_id: convocatoriaActual.id
+  };
+
+  const { error } = await supabaseClient
+    .from("itinerancias_propuestas")
+    .insert(payload);
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se ha podido crear la propuesta de modificación: " + error.message, true);
+    return;
+  }
+
+  mostrarMsg("Borrador de modificación creado correctamente. Puedes revisarlo en tus propuestas.");
+  setTimeout(() => window.location.reload(), 900);
 }
 
 function escapeHtml(v) {
