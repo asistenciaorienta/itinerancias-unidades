@@ -310,9 +310,24 @@ async function guardarPropuesta(estado) {
     payload.enviada_at = new Date().toISOString();
   }
 
-  const { error } = await supabaseClient
-    .from("itinerancias_propuestas")
-    .insert(payload);
+  const idPropuesta = obtenerIdPropuestaEdicion();
+
+  let error;
+
+  if (idPropuesta) {
+    const res = await supabaseClient
+      .from("itinerancias_propuestas")
+      .update(payload)
+      .eq("id", idPropuesta);
+
+    error = res.error;
+  } else {
+    const res = await supabaseClient
+      .from("itinerancias_propuestas")
+      .insert(payload);
+
+    error = res.error;
+  }
 
   if (error) {
     console.error(error);
@@ -365,9 +380,11 @@ async function crearPropuestaModificacion(idPublicada) {
     convocatoria_id: convocatoriaActual.id
   };
 
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from("itinerancias_propuestas")
-    .insert(payload);
+    .insert(payload)
+    .select("id")
+    .single();
 
   if (error) {
     console.error(error);
@@ -375,8 +392,7 @@ async function crearPropuestaModificacion(idPublicada) {
     return;
   }
 
-  mostrarMsg("Borrador de modificación creado correctamente. Puedes revisarlo en tus propuestas.");
-  setTimeout(() => window.location.reload(), 900);
+  window.location.href = `nueva-itinerancia.html?propuesta=${encodeURIComponent(data.id)}`;
 }
 
 function escapeHtml(v) {
@@ -389,7 +405,69 @@ function escapeHtml(v) {
   }[ch]));
 }
 
+function obtenerIdPropuestaEdicion() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("propuesta");
+}
+
+function setValor(id, valor) {
+  const el = $(id);
+  if (el) el.value = valor ?? "";
+}
+
+async function cargarPropuestaParaEditar() {
+  const idPropuesta = obtenerIdPropuestaEdicion();
+  if (!idPropuesta || !$("formNuevaItinerancia")) return;
+
+  const perfil = await obtenerPerfil();
+  if (!perfil) return;
+
+  const { data, error } = await supabaseClient
+    .from("itinerancias_propuestas")
+    .select("*")
+    .eq("id", idPropuesta)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se ha podido cargar la propuesta para editar.", true);
+    return;
+  }
+
+  if (!data) {
+    mostrarMsg("No se ha encontrado la propuesta.", true);
+    return;
+  }
+
+  if (!["BORRADOR", "RECHAZADA"].includes(String(data.estado || ""))) {
+    mostrarMsg("Esta propuesta ya no se puede editar porque está enviada o publicada.", true);
+    return;
+  }
+
+  setValor("tipo", data.tipo || "MODIFICACION");
+  setValor("titulo", data.titulo);
+  setValor("descripcion", data.descripcion);
+  setValor("municipio", data.municipio);
+  setValor("direccion", data.direccion);
+  setValor("horario", data.horario);
+  setValor("frecuencia", data.frecuencia);
+  setValor("fechaInicio", data.fecha_inicio);
+  setValor("fechaFin", data.fecha_fin);
+  setValor("contacto", data.contacto);
+  setValor("telefono", data.telefono);
+  setValor("emailContacto", data.email);
+  setValor("observacionesPublicas", data.observaciones_publicas);
+  setValor("observacionesUnidad", data.observaciones_unidad);
+
+  const h1 = document.querySelector("h1");
+  if (h1) h1.textContent = "Editar propuesta de itinerancia";
+
+  mostrarMsg("Editando borrador de modificación.");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  cargarPropuestaParaEditar();
+  
   const formLogin = $("formLogin");
   if (formLogin) {
     formLogin.addEventListener("submit", async e => {
