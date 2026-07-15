@@ -20,26 +20,24 @@
   </header>
 
   <main class="contenedor ancho">
-    <section class="card">
-      <h2>Propuestas</h2>
-      <p class="muted">
-        Aquí aparecen tus borradores, propuestas pendientes, rechazadas y publicadas.
-      </p>
 
+    <section class="card">
+      <h2>Mis itinerancias publicadas</h2>
+      <p class="muted">
+        Desde aquí puedes consultar tus itinerancias actualmente publicadas y solicitar modificaciones.
+      </p>
+      <div id="listaPublicadas" class="lista"></div>
+    </section>
+
+    <section class="card">
+      <h2>Mis propuestas</h2>
+      <p class="muted">
+        Aquí aparecen tus borradores, propuestas pendientes y propuestas rechazadas o revisadas.
+      </p>
       <div id="listaPropuestas" class="lista"></div>
       <p id="msg" class="msg"></p>
     </section>
 
-    <section class="card">
-      <h2>Mis itinerancias publicadas</h2>
-      <p class="muted">Desde aquí puedes solicitar modificaciones sobre las itinerancias actualmente publicadas.</p>
-      <div id="listaPublicadas"></div>
-    </section>
-    
-    <section class="card">
-      <h2>Mis propuestas</h2>
-      <div id="listaPropuestas"></div>
-    </section>    
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
