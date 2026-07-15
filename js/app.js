@@ -26,6 +26,27 @@ async function exigirLogin() {
   return session;
 }
 
+async function obtenerConvocatoriaVigente() {
+  const { data, error } = await supabaseClient
+    .from("convocatorias_orienta")
+    .select("id,nombre,periodo,fecha_inicio,fecha_fin,estado,visible_web")
+    .eq("visible_web", true)
+    .eq("estado", "VIGENTE")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("No hay ninguna convocatoria vigente disponible.");
+  }
+
+  return data;
+}
+
 async function obtenerPerfil() {
   const session = await exigirLogin();
   if (!session) return null;
@@ -71,6 +92,15 @@ async function logout() {
 }
 
 async function solicitarAcceso(payload) {
+  try {
+    const convocatoria = await obtenerConvocatoriaVigente();
+    payload.convocatoria_id = convocatoria.id;
+  } catch (err) {
+    console.error(err);
+    mostrarMsg("No se ha podido detectar la convocatoria vigente. Inténtalo más tarde.", true);
+    return;
+  }
+
   const { error } = await supabaseClient
     .from("solicitudes_acceso")
     .insert(payload);
@@ -90,17 +120,33 @@ async function cargarPanel() {
   const perfil = await obtenerPerfil();
   if (!perfil) return;
 
+  let convocatoria = null;
+
+  try {
+    convocatoria = await obtenerConvocatoriaVigente();
+  } catch (err) {
+    console.error(err);
+    mostrarMsg("No se ha podido detectar la convocatoria vigente.", true);
+  }
+
   const unidadNombre = perfil.unidades?.nombre || "Unidad sin asignar";
 
   const info = $("usuarioInfo");
   if (info) {
-    info.textContent = `${perfil.nombre || perfil.email} · ${unidadNombre}`;
+    const convocatoriaTxt = convocatoria?.nombre ? ` · ${convocatoria.nombre}` : "";
+    info.textContent = `${perfil.nombre || perfil.email} · ${unidadNombre}${convocatoriaTxt}`;
   }
 
-  const { data, error } = await supabaseClient
+  let query = supabaseClient
     .from("itinerancias_propuestas")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (convocatoria?.id) {
+    query = query.eq("convocatoria_id", convocatoria.id);
+  }
+
+  const { data, error } = await query;
 
   const lista = $("listaPropuestas");
 
@@ -114,7 +160,7 @@ async function cargarPanel() {
   if (!lista) return;
 
   if (!data.length) {
-    lista.innerHTML = `<p class="muted">Todavía no tienes propuestas.</p>`;
+    lista.innerHTML = `<p class="muted">Todavía no tienes propuestas para la convocatoria vigente.</p>`;
     return;
   }
 
@@ -158,6 +204,16 @@ async function guardarPropuesta(estado) {
   const perfil = await obtenerPerfil();
   if (!perfil) return;
 
+  let convocatoria;
+
+  try {
+    convocatoria = await obtenerConvocatoriaVigente();
+  } catch (err) {
+    console.error(err);
+    mostrarMsg("No se ha podido detectar la convocatoria vigente. No se puede guardar la propuesta.", true);
+    return;
+  }
+
   const payload = datosFormularioItinerancia(estado);
 
   if (!payload.titulo) {
@@ -167,6 +223,7 @@ async function guardarPropuesta(estado) {
 
   payload.unidad_id = perfil.unidad_id;
   payload.creada_por = perfil.id;
+  payload.convocatoria_id = convocatoria.id;
 
   if (estado === "PENDIENTE_VALIDACION") {
     payload.enviada_at = new Date().toISOString();
