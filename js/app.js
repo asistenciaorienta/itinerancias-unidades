@@ -377,7 +377,8 @@ async function crearPropuestaModificacion(idPublicada) {
     observaciones_unidad: "Propuesta creada a partir de una itinerancia publicada para solicitar modificación.",
     unidad_id: perfilActual.unidad_id,
     creada_por: perfilActual.id,
-    convocatoria_id: convocatoriaActual.id
+    convocatoria_id: convocatoriaActual.id,
+    itinerancia_publicada_id: original.id
   };
 
   const { data, error } = await supabaseClient
