@@ -293,6 +293,22 @@ function generarTituloPropuesta(perfil, payload) {
   return `${unidad} - ${municipio}`;
 }
 
+
+async function aplicarFechaFinConvocatoriaPorDefecto() {
+  if (!$("formNuevaItinerancia") || !$("fechaFin")) return;
+
+  try {
+    const convocatoria = await obtenerConvocatoriaVigente();
+
+    if (convocatoria?.fecha_fin && !$("fechaFin").value) {
+      $("fechaFin").value = String(convocatoria.fecha_fin).slice(0, 10);
+    }
+  } catch (err) {
+    console.error(err);
+    // No bloqueamos el formulario si no puede detectarse la fecha.
+  }
+}
+
 async function guardarPropuesta(estado) {
   const perfil = await obtenerPerfil();
   if (!perfil) return;
@@ -477,7 +493,7 @@ async function cargarPropuestaParaEditar() {
   setValor("horario", data.horario);
   setValor("frecuencia", data.frecuencia);
   setValor("fechaInicio", data.fecha_inicio);
-  setValor("fechaFin", data.fecha_fin);
+  setValor("fechaFin", data.fecha_fin || $("fechaFin")?.value || "");
   setValor("contacto", data.contacto);
   setValor("telefono", data.telefono);
   setValor("emailContacto", data.email);
@@ -491,6 +507,7 @@ async function cargarPropuestaParaEditar() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  aplicarFechaFinConvocatoriaPorDefecto();
   cargarPropuestaParaEditar();
   
   const formLogin = $("formLogin");
