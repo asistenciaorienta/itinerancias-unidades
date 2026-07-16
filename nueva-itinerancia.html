@@ -28,24 +28,25 @@
           <option value="MODIFICACION">Modificación de itinerancia existente</option>
           <option value="BAJA">Baja de itinerancia</option>
         </select>
-
-        <label>Título</label>
-        <input type="text" id="titulo" required>
-
-        <label>Descripción</label>
-        <textarea id="descripcion" rows="4"></textarea>
-
         <label>Municipio</label>
-        <input type="text" id="municipio">
+        <input type="text" id="municipio" required>
 
         <label>Dirección / lugar de realización</label>
         <input type="text" id="direccion">
 
-        <label>Horario</label>
-        <input type="text" id="horario" placeholder="Ej.: martes de 10:00 a 12:00">
+        <label>Día/Días</label>
+        <input type="text" id="horario" required placeholder="Ej.: Martes / Martes y Jueves / 1er y 3er Miércoles / mes">
 
         <label>Frecuencia</label>
-        <input type="text" id="frecuencia" placeholder="Ej.: semanal, mensual, puntual...">
+        <select id="frecuencia" required>
+          <option value="">Seleccionar...</option>
+          <option value="Semanal">Semanal</option>
+          <option value="Quincenal">Quincenal</option>
+          <option value="Mensual">Mensual</option>
+          <option value="Puntual">Puntual</option>
+          <option value="A demanda / cita previa">A demanda / cita previa</option>
+          <option value="Otra periodicidad">Otra periodicidad</option>
+        </select>
 
         <div class="grid2">
           <div>
@@ -86,6 +87,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260716-formulario-simple"></script>
 </body>
 </html>

@@ -262,14 +262,17 @@ async function cargarPanel() {
 }
 
 function datosFormularioItinerancia(estado) {
+  const dias = $("horario")?.value.trim() || null;
+
   return {
     tipo: $("tipo")?.value || "NUEVA",
     estado,
-    titulo: $("titulo")?.value.trim() || "",
-    descripcion: $("descripcion")?.value.trim() || null,
+    titulo: "",
+    descripcion: null,
     municipio: $("municipio")?.value.trim() || null,
     direccion: $("direccion")?.value.trim() || null,
-    horario: $("horario")?.value.trim() || null,
+    horario: dias,
+    dias,
     frecuencia: $("frecuencia")?.value.trim() || null,
     fecha_inicio: $("fechaInicio")?.value || null,
     fecha_fin: $("fechaFin")?.value || null,
@@ -279,6 +282,15 @@ function datosFormularioItinerancia(estado) {
     observaciones_publicas: $("observacionesPublicas")?.value.trim() || null,
     observaciones_unidad: $("observacionesUnidad")?.value.trim() || null
   };
+}
+
+
+
+
+function generarTituloPropuesta(perfil, payload) {
+  const unidad = perfil?.unidades?.nombre || "Unidad";
+  const municipio = payload?.municipio || "Itinerancia";
+  return `${unidad} - ${municipio}`;
 }
 
 async function guardarPropuesta(estado) {
@@ -297,10 +309,22 @@ async function guardarPropuesta(estado) {
 
   const payload = datosFormularioItinerancia(estado);
 
-  if (!payload.titulo) {
-    mostrarMsg("El título es obligatorio.", true);
+  if (!payload.municipio) {
+    mostrarMsg("El municipio es obligatorio.", true);
     return;
   }
+
+  if (!payload.horario) {
+    mostrarMsg("El campo Día/Días es obligatorio.", true);
+    return;
+  }
+
+  if (!payload.frecuencia) {
+    mostrarMsg("La frecuencia es obligatoria.", true);
+    return;
+  }
+
+  payload.titulo = generarTituloPropuesta(perfil, payload);
 
   payload.unidad_id = perfil.unidad_id;
   payload.creada_por = perfil.id;
@@ -463,7 +487,7 @@ async function cargarPropuestaParaEditar() {
   const h1 = document.querySelector("h1");
   if (h1) h1.textContent = "Editar propuesta de itinerancia";
 
-  mostrarMsg("Editando borrador de modificación.");
+  mostrarMsg("Editando borrador de propuesta.");
 }
 
 document.addEventListener("DOMContentLoaded", () => {

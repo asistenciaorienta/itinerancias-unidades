@@ -233,3 +233,13 @@ button.peligro,
     flex-direction: column;
   }
 }
+/* Formulario nueva propuesta: select de frecuencia */
+form select {
+  width: 100%;
+  padding: .7rem .8rem;
+  border: 1px solid #cbd5e1;
+  border-radius: .65rem;
+  font: inherit;
+  box-sizing: border-box;
+  background: #fff;
+}
