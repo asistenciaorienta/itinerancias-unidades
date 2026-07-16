@@ -187,9 +187,14 @@ function renderItineranciasPublicadas(lista, unidadNombre) {
           ${i.colectivo ? " · " + escapeHtml(i.colectivo) : ""}
         </p>
       </div>
-      <button class="btn" onclick="crearPropuestaModificacion('${escapeHtml(i.id)}')">
-        Solicitar modificación
-      </button>
+      <div class="acciones-item">
+        <button class="btn" onclick="abrirModalActividad('${escapeHtml(i.id)}')">
+          Registrar actividad
+        </button>
+        <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(i.id)}')">
+          Solicitar modificación
+        </button>
+      </div>
     </article>
   `).join("");
 }
@@ -222,6 +227,7 @@ function renderPropuestas(lista) {
 let perfilActual = null;
 let convocatoriaActual = null;
 let publicadasActuales = [];
+let itineranciaActividadActual = null;
 
 async function cargarPanel() {
   const perfil = await obtenerPerfil();
@@ -384,6 +390,131 @@ async function guardarPropuesta(estado) {
   setTimeout(() => {
     window.location.href = "panel.html";
   }, 900);
+}
+
+
+function hoyISO() {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 10);
+}
+
+function setValorActividad(id, valor) {
+  const el = $(id);
+  if (el) el.value = valor ?? "";
+}
+
+function getValorActividad(id) {
+  const el = $(id);
+  return el ? String(el.value ?? "").trim() : "";
+}
+
+function minutosActividad() {
+  const h = Number(getValorActividad("actividadHoras") || 0);
+  const m = Number(getValorActividad("actividadMinutos") || 0);
+  return h * 60 + m;
+}
+
+window.abrirModalActividad = function abrirModalActividad(idPublicada) {
+  const itinerancia = publicadasActuales.find(i => String(i.id) === String(idPublicada));
+
+  if (!itinerancia) {
+    mostrarMsg("No se ha encontrado la itinerancia seleccionada.", true);
+    return;
+  }
+
+  itineranciaActividadActual = itinerancia;
+
+  setValorActividad("actividadItineranciaId", itinerancia.id);
+  setValorActividad("actividadFecha", hoyISO());
+  setValorActividad("actividadTecnico", itinerancia.contacto || itinerancia.tecnico_orienta || "");
+  setValorActividad("actividadAtenciones", "0");
+  setValorActividad("actividadTipo", "");
+  setValorActividad("actividadHoras", "0");
+  setValorActividad("actividadMinutos", "0");
+  setValorActividad("actividadObservaciones", "");
+
+  const info = $("actividadInfo");
+  if (info) {
+    info.innerHTML = `
+      <p><strong>Unidad:</strong> ${escapeHtml(perfilActual?.unidades?.nombre || itinerancia.entidad || "")}</p>
+      <p><strong>Municipio:</strong> ${escapeHtml(itinerancia.municipio || "")}</p>
+      <p><strong>Día/Días:</strong> ${escapeHtml(itinerancia.dias || itinerancia.horario || "")}</p>
+      <p><strong>Colectivo:</strong> ${escapeHtml(itinerancia.colectivo || "")}</p>
+    `;
+  }
+
+  $("modalActividad").showModal();
+};
+
+async function guardarActividadItinerancia() {
+  if (!perfilActual || !convocatoriaActual || !itineranciaActividadActual) {
+    mostrarMsg("No se ha podido identificar la unidad, convocatoria o itinerancia.", true);
+    return;
+  }
+
+  const fecha = getValorActividad("actividadFecha");
+  const tipo = getValorActividad("actividadTipo");
+  const atenciones = Number(getValorActividad("actividadAtenciones") || 0);
+  const totalMin = minutosActividad();
+  const observaciones = getValorActividad("actividadObservaciones");
+
+  if (!fecha) {
+    mostrarMsg("La fecha de actividad es obligatoria.", true);
+    return;
+  }
+
+  if (!tipo) {
+    mostrarMsg("El tipo de atención es obligatorio.", true);
+    return;
+  }
+
+  if (!Number.isInteger(atenciones) || atenciones < 0) {
+    mostrarMsg("El número de atenciones debe ser 0 o superior.", true);
+    return;
+  }
+
+  if (totalMin > 420) {
+    mostrarMsg("El tiempo total no puede superar 07:00 horas.", true);
+    return;
+  }
+
+  if (totalMin > 0 && totalMin < 5) {
+    mostrarMsg("El tiempo mínimo es 00:05.", true);
+    return;
+  }
+
+  if (totalMin === 0 && !observaciones) {
+    mostrarMsg("Si el tiempo total es 00:00, las observaciones son obligatorias.", true);
+    return;
+  }
+
+  const payload = {
+    itinerancia_publicada_id: itineranciaActividadActual.id,
+    unidad_id: perfilActual.unidad_id,
+    convocatoria_id: convocatoriaActual.id,
+    fecha_actividad: fecha,
+    personal_tecnico: getValorActividad("actividadTecnico") || null,
+    numero_atenciones: atenciones,
+    tipo_atencion: tipo,
+    tiempo_total_minutos: totalMin,
+    observaciones: observaciones || null,
+    creada_por: perfilActual.id
+  };
+
+  const { error } = await supabaseClient
+    .from("actividad_itinerancias")
+    .insert(payload);
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se ha podido guardar la actividad: " + error.message, true);
+    return;
+  }
+
+  $("modalActividad").close();
+  mostrarMsg("Actividad registrada correctamente.");
 }
 
 async function crearPropuestaModificacion(idPublicada) {
@@ -556,6 +687,20 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnGuardarBorrador) {
     btnGuardarBorrador.addEventListener("click", async () => {
       await guardarPropuesta("BORRADOR");
+    });
+  }
+
+  const btnGuardarActividad = $("btnGuardarActividad");
+  if (btnGuardarActividad) {
+    btnGuardarActividad.addEventListener("click", async () => {
+      await guardarActividadItinerancia();
+    });
+  }
+
+  const btnCancelarActividad = $("btnCancelarActividad");
+  if (btnCancelarActividad) {
+    btnCancelarActividad.addEventListener("click", () => {
+      $("modalActividad").close();
     });
   }
 });

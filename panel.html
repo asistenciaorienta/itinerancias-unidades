@@ -40,8 +40,81 @@
 
   </main>
 
+
+  <dialog id="modalActividad">
+    <form method="dialog" class="modal-card modal-actividad-card">
+      <h2>Registrar actividad</h2>
+
+      <input type="hidden" id="actividadItineranciaId">
+
+      <div class="actividad-info" id="actividadInfo"></div>
+
+      <div class="form-grid-actividad">
+        <label>
+          Fecha de actividad
+          <input type="date" id="actividadFecha" required>
+        </label>
+
+        <label>
+          Personal técnico
+          <input type="text" id="actividadTecnico">
+        </label>
+
+        <label>
+          Nº de atenciones
+          <input type="number" id="actividadAtenciones" min="0" step="1" value="0" required>
+        </label>
+
+        <label>
+          Tipo de atención
+          <select id="actividadTipo" required>
+            <option value="">Seleccionar...</option>
+            <option value="Presencial Individual">Presencial Individual</option>
+            <option value="Presencial Grupal">Presencial Grupal</option>
+            <option value="Telefónica">Telefónica</option>
+            <option value="Otra">Otra</option>
+          </select>
+        </label>
+
+        <label>
+          Horas
+          <input type="number" id="actividadHoras" min="0" max="7" step="1" value="0" required>
+        </label>
+
+        <label>
+          Minutos
+          <select id="actividadMinutos" required>
+            <option value="0">00</option>
+            <option value="5">05</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+            <option value="25">25</option>
+            <option value="30">30</option>
+            <option value="35">35</option>
+            <option value="40">40</option>
+            <option value="45">45</option>
+            <option value="50">50</option>
+            <option value="55">55</option>
+          </select>
+        </label>
+
+        <label class="span-2">
+          Observaciones
+          <textarea id="actividadObservaciones" rows="4" placeholder="Obligatorio si el tiempo total es 00:00"></textarea>
+        </label>
+      </div>
+
+      <div class="acciones modal-actions">
+        <button type="button" id="btnGuardarActividad">Guardar actividad</button>
+        <button type="button" id="btnCancelarActividad" class="secundario">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=20260716-actividad-1"></script>
 </body>
 </html>
