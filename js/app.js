@@ -169,6 +169,85 @@ async function cargarPropuestasEntidad(convocatoriaId) {
   return data || [];
 }
 
+
+function fechaES(fecha) {
+  if (!fecha) return "";
+  const [y, m, d] = String(fecha).slice(0, 10).split("-");
+  if (!y || !m || !d) return fecha;
+  return `${d}/${m}/${y}`;
+}
+
+function formatoTiempo(minutos) {
+  const total = Number(minutos || 0);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function actividadesDeItinerancia(idPublicada) {
+  return actividadesActuales
+    .filter(a => String(a.itinerancia_publicada_id) === String(idPublicada))
+    .sort((a, b) => {
+      const f = String(b.fecha_actividad || "").localeCompare(String(a.fecha_actividad || ""));
+      if (f !== 0) return f;
+      return String(b.created_at || "").localeCompare(String(a.created_at || ""));
+    });
+}
+
+function renderActividadesItinerancia(idPublicada) {
+  const actividades = actividadesDeItinerancia(idPublicada).slice(0, 3);
+
+  if (!actividades.length) {
+    return `<div class="actividad-lista actividad-lista-vacia">Sin actividad registrada todavía.</div>`;
+  }
+
+  return `
+    <div class="actividad-lista">
+      <h4>Últimas actividades</h4>
+      ${actividades.map(a => `
+        <div class="actividad-row">
+          <div>
+            <strong>${escapeHtml(fechaES(a.fecha_actividad))}</strong>
+            <span>
+              · ${escapeHtml(String(a.numero_atenciones ?? 0))} atención/es
+              · ${escapeHtml(formatoTiempo(a.tiempo_total_minutos))}
+              ${a.tipo_atencion ? " · " + escapeHtml(a.tipo_atencion) : ""}
+            </span>
+            ${a.personal_tecnico ? `<div class="muted">Técnico/a: ${escapeHtml(a.personal_tecnico)}</div>` : ""}
+          </div>
+          <button class="btn mini secundario" onclick="abrirModalActividad('${escapeHtml(idPublicada)}', '${escapeHtml(a.id)}')">
+            Editar
+          </button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function cargarActividadesUnidad(convocatoriaId) {
+  if (!perfilActual?.unidad_id || !convocatoriaId) {
+    actividadesActuales = [];
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("actividad_itinerancias")
+    .select("*")
+    .eq("unidad_id", perfilActual.unidad_id)
+    .eq("convocatoria_id", convocatoriaId)
+    .order("fecha_actividad", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se han podido cargar las actividades registradas: " + error.message, true);
+    actividadesActuales = [];
+    return;
+  }
+
+  actividadesActuales = data || [];
+}
+
 function renderItineranciasPublicadas(lista, unidadNombre) {
   const cont = $("listaPublicadas");
   if (!cont) return;
@@ -198,6 +277,7 @@ function renderItineranciasPublicadas(lista, unidadNombre) {
           ${escapeHtml(i.tecnico_orienta || i.contacto || "")}
           ${i.colectivo ? " · " + escapeHtml(i.colectivo) : ""}
         </p>
+        ${renderActividadesItinerancia(i.id)}
       </div>
       <div class="acciones-item">
         <button class="btn" onclick="abrirModalActividad('${escapeHtml(i.id)}')">
@@ -240,6 +320,7 @@ let perfilActual = null;
 let convocatoriaActual = null;
 let publicadasActuales = [];
 let itineranciaActividadActual = null;
+let actividadesActuales = [];
 
 async function cargarPanel() {
   const perfil = await obtenerPerfil();
@@ -269,6 +350,7 @@ async function cargarPanel() {
     ]);
 
     publicadasActuales = publicadas;
+    await cargarActividadesUnidad(convocatoriaActual.id);
 
     renderItineranciasPublicadas(publicadas, unidadNombre);
     renderPropuestas(propuestas);
@@ -440,7 +522,7 @@ function minutosActividad() {
   return h * 60 + m;
 }
 
-window.abrirModalActividad = function abrirModalActividad(idPublicada) {
+window.abrirModalActividad = function abrirModalActividad(idPublicada, idActividad = null) {
   const itinerancia = publicadasActuales.find(i => String(i.id) === String(idPublicada));
 
   if (!itinerancia) {
@@ -448,17 +530,36 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada) {
     return;
   }
 
+  const actividad = idActividad
+    ? actividadesActuales.find(a => String(a.id) === String(idActividad))
+    : null;
+
+  if (idActividad && !actividad) {
+    mostrarMsg("No se ha encontrado la actividad seleccionada.", true);
+    return;
+  }
+
   itineranciaActividadActual = itinerancia;
 
+  const totalMin = actividad ? Number(actividad.tiempo_total_minutos || 0) : null;
+  const horas = actividad ? Math.floor(totalMin / 60) : "";
+  const minutos = actividad ? totalMin % 60 : "";
+
+  setValorActividad("actividadRegistroId", actividad?.id || "");
   setValorActividad("actividadItineranciaId", itinerancia.id);
-  setValorActividad("actividadFecha", hoyISO());
-  setValorActividad("actividadTecnico", itinerancia.contacto || itinerancia.tecnico_orienta || "");
-  setValorActividad("actividadAtenciones", "");
-  setValorActividad("actividadTipo", "");
-  setValorActividad("actividadHoras", "");
-  setValorActividad("actividadMinutos", "");
-  setValorActividad("actividadObservaciones", "");
+  setValorActividad("actividadFecha", actividad?.fecha_actividad || hoyISO());
+  setValorActividad("actividadTecnico", actividad?.personal_tecnico || itinerancia.contacto || itinerancia.tecnico_orienta || "");
+  setValorActividad("actividadAtenciones", actividad?.numero_atenciones ?? "");
+  setValorActividad("actividadTipo", actividad?.tipo_atencion || "");
+  setValorActividad("actividadHoras", horas);
+  setValorActividad("actividadMinutos", minutos === "" ? "" : String(minutos));
+  setValorActividad("actividadObservaciones", actividad?.observaciones || "");
   mostrarMsgActividad("");
+
+  const titulo = $("actividadModalTitulo");
+  if (titulo) {
+    titulo.textContent = actividad ? "Editar actividad" : "Registrar actividad";
+  }
 
   const info = $("actividadInfo");
   if (info) {
@@ -467,6 +568,7 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada) {
       <p><strong>Municipio:</strong> ${escapeHtml(itinerancia.municipio || "")}</p>
       <p><strong>Día/Días:</strong> ${escapeHtml(itinerancia.dias || itinerancia.horario || "")}</p>
       <p><strong>Colectivo:</strong> ${escapeHtml(itinerancia.colectivo || "")}</p>
+      ${actividad ? `<p><strong>Registro:</strong> ${escapeHtml(fechaES(actividad.fecha_actividad))}</p>` : ""}
     `;
   }
 
@@ -539,6 +641,8 @@ async function guardarActividadItinerancia() {
     return;
   }
 
+  const idActividad = getValorActividad("actividadRegistroId");
+
   const payload = {
     itinerancia_publicada_id: itineranciaActividadActual.id,
     unidad_id: perfilActual.unidad_id,
@@ -548,13 +652,29 @@ async function guardarActividadItinerancia() {
     numero_atenciones: atenciones,
     tipo_atencion: tipo || null,
     tiempo_total_minutos: totalMin,
-    observaciones: observaciones || null,
-    creada_por: perfilActual.id
+    observaciones: observaciones || null
   };
 
-  const { error } = await supabaseClient
-    .from("actividad_itinerancias")
-    .insert(payload);
+  let error;
+
+  if (idActividad) {
+    const res = await supabaseClient
+      .from("actividad_itinerancias")
+      .update(payload)
+      .eq("id", idActividad)
+      .eq("unidad_id", perfilActual.unidad_id);
+
+    error = res.error;
+  } else {
+    const res = await supabaseClient
+      .from("actividad_itinerancias")
+      .insert({
+        ...payload,
+        creada_por: perfilActual.id
+      });
+
+    error = res.error;
+  }
 
   if (error) {
     console.error(error);
@@ -564,7 +684,11 @@ async function guardarActividadItinerancia() {
 
   $("modalActividad").close();
   mostrarMsgActividad("");
-  mostrarMsg("Actividad registrada correctamente.");
+
+  await cargarActividadesUnidad(convocatoriaActual.id);
+  renderItineranciasPublicadas(publicadasActuales, perfilActual?.unidades?.nombre || "Unidad");
+
+  mostrarMsg(idActividad ? "Actividad actualizada correctamente." : "Actividad registrada correctamente.");
 }
 
 async function crearPropuestaModificacion(idPublicada) {
