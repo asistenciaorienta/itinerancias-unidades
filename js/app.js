@@ -195,32 +195,19 @@ function actividadesDeItinerancia(idPublicada) {
 }
 
 function renderActividadesItinerancia(idPublicada) {
-  const actividades = actividadesDeItinerancia(idPublicada).slice(0, 3);
+  const actividades = actividadesDeItinerancia(idPublicada);
+  const total = actividades.length;
+  const ultima = actividades[0];
 
-  if (!actividades.length) {
-    return `<div class="actividad-lista actividad-lista-vacia">Sin actividad registrada todavía.</div>`;
+  if (!total) {
+    return `<p class="muted actividad-resumen">Sin actividad registrada todavía.</p>`;
   }
 
   return `
-    <div class="actividad-lista">
-      <h4>Últimas actividades</h4>
-      ${actividades.map(a => `
-        <div class="actividad-row">
-          <div>
-            <strong>${escapeHtml(fechaES(a.fecha_actividad))}</strong>
-            <span>
-              · ${escapeHtml(String(a.numero_atenciones ?? 0))} atención/es
-              · ${escapeHtml(formatoTiempo(a.tiempo_total_minutos))}
-              ${a.tipo_atencion ? " · " + escapeHtml(a.tipo_atencion) : ""}
-            </span>
-            ${a.personal_tecnico ? `<div class="muted">Técnico/a: ${escapeHtml(a.personal_tecnico)}</div>` : ""}
-          </div>
-          <button class="btn mini secundario" onclick="abrirModalActividad('${escapeHtml(idPublicada)}', '${escapeHtml(a.id)}')">
-            Editar
-          </button>
-        </div>
-      `).join("")}
-    </div>
+    <p class="muted actividad-resumen">
+      ${total} actividad/es registrada/s
+      ${ultima ? ` · Última: ${escapeHtml(fechaES(ultima.fecha_actividad))}` : ""}
+    </p>
   `;
 }
 
@@ -283,6 +270,9 @@ function renderItineranciasPublicadas(lista, unidadNombre) {
         <button class="btn" onclick="abrirModalActividad('${escapeHtml(i.id)}')">
           Registrar actividad
         </button>
+        <button class="btn secundario" onclick="abrirModalListadoActividades('${escapeHtml(i.id)}')">
+          Ver actividades
+        </button>
         <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(i.id)}')">
           Solicitar modificación
         </button>
@@ -320,6 +310,7 @@ let perfilActual = null;
 let convocatoriaActual = null;
 let publicadasActuales = [];
 let itineranciaActividadActual = null;
+let itineranciaListadoActividadesActual = null;
 let actividadesActuales = [];
 
 async function cargarPanel() {
@@ -522,6 +513,93 @@ function minutosActividad() {
   return h * 60 + m;
 }
 
+
+function textoFiltroActividad(a) {
+  return [
+    fechaES(a.fecha_actividad),
+    a.fecha_actividad,
+    a.personal_tecnico,
+    a.numero_atenciones,
+    a.tipo_atencion,
+    formatoTiempo(a.tiempo_total_minutos),
+    a.observaciones
+  ].join(" ").toLowerCase();
+}
+
+function renderListadoActividadesModal() {
+  const cont = $("contenidoListadoActividades");
+  if (!cont || !itineranciaListadoActividadesActual) return;
+
+  const filtro = String($("filtroActividades")?.value || "").trim().toLowerCase();
+
+  let actividades = actividadesDeItinerancia(itineranciaListadoActividadesActual.id);
+
+  if (filtro) {
+    actividades = actividades.filter(a => textoFiltroActividad(a).includes(filtro));
+  }
+
+  if (!actividades.length) {
+    cont.innerHTML = `<p class="muted sin-resultados-actividad">No hay actividades que coincidan con el filtro.</p>`;
+    return;
+  }
+
+  cont.innerHTML = `
+    <div class="actividad-tabla-cabecera">
+      <span>Fecha</span>
+      <span>Técnico/a</span>
+      <span>Atenc.</span>
+      <span>Tipo</span>
+      <span>Tiempo</span>
+      <span>Observaciones</span>
+      <span></span>
+    </div>
+    ${actividades.map(a => `
+      <div class="actividad-tabla-row">
+        <span>${escapeHtml(fechaES(a.fecha_actividad))}</span>
+        <span title="${escapeHtml(a.personal_tecnico || "")}">${escapeHtml(a.personal_tecnico || "-")}</span>
+        <span>${escapeHtml(String(a.numero_atenciones ?? 0))}</span>
+        <span title="${escapeHtml(a.tipo_atencion || "")}">${escapeHtml(a.tipo_atencion || "-")}</span>
+        <span>${escapeHtml(formatoTiempo(a.tiempo_total_minutos))}</span>
+        <span title="${escapeHtml(a.observaciones || "")}">${escapeHtml(a.observaciones || "-")}</span>
+        <span>
+          <button class="btn mini secundario" onclick="abrirModalActividad('${escapeHtml(itineranciaListadoActividadesActual.id)}', '${escapeHtml(a.id)}')">
+            Editar
+          </button>
+        </span>
+      </div>
+    `).join("")}
+  `;
+}
+
+window.abrirModalListadoActividades = function abrirModalListadoActividades(idPublicada) {
+  const itinerancia = publicadasActuales.find(i => String(i.id) === String(idPublicada));
+
+  if (!itinerancia) {
+    mostrarMsg("No se ha encontrado la itinerancia seleccionada.", true);
+    return;
+  }
+
+  itineranciaListadoActividadesActual = itinerancia;
+
+  const titulo = $("listadoActividadesTitulo");
+  if (titulo) titulo.textContent = "Actividades registradas";
+
+  const subtitulo = $("listadoActividadesSubtitulo");
+  if (subtitulo) {
+    subtitulo.textContent = [
+      itinerancia.municipio || "",
+      itinerancia.dias || itinerancia.horario || "",
+      perfilActual?.unidades?.nombre || itinerancia.entidad || ""
+    ].filter(Boolean).join(" · ");
+  }
+
+  const filtro = $("filtroActividades");
+  if (filtro) filtro.value = "";
+
+  renderListadoActividadesModal();
+  $("modalListadoActividades").showModal();
+};
+
 window.abrirModalActividad = function abrirModalActividad(idPublicada, idActividad = null) {
   const itinerancia = publicadasActuales.find(i => String(i.id) === String(idPublicada));
 
@@ -687,6 +765,10 @@ async function guardarActividadItinerancia() {
 
   await cargarActividadesUnidad(convocatoriaActual.id);
   renderItineranciasPublicadas(publicadasActuales, perfilActual?.unidades?.nombre || "Unidad");
+
+  if ($("modalListadoActividades")?.open) {
+    renderListadoActividadesModal();
+  }
 
   mostrarMsg(idActividad ? "Actividad actualizada correctamente." : "Actividad registrada correctamente.");
 }
@@ -875,6 +957,20 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnCancelarActividad) {
     btnCancelarActividad.addEventListener("click", () => {
       $("modalActividad").close();
+    });
+  }
+
+  const btnCerrarListadoActividades = $("btnCerrarListadoActividades");
+  if (btnCerrarListadoActividades) {
+    btnCerrarListadoActividades.addEventListener("click", () => {
+      $("modalListadoActividades").close();
+    });
+  }
+
+  const filtroActividades = $("filtroActividades");
+  if (filtroActividades) {
+    filtroActividades.addEventListener("input", () => {
+      renderListadoActividadesModal();
     });
   }
 });

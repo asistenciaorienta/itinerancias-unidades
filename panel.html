@@ -41,6 +41,26 @@
   </main>
 
 
+  
+  <dialog id="modalListadoActividades">
+    <div class="modal-card modal-listado-actividades-card">
+      <div class="modal-listado-header">
+        <div>
+          <h2 id="listadoActividadesTitulo">Actividades registradas</h2>
+          <p id="listadoActividadesSubtitulo" class="muted"></p>
+        </div>
+        <button type="button" id="btnCerrarListadoActividades" class="secundario">Cerrar</button>
+      </div>
+
+      <div class="filtro-actividad-modal">
+        <input type="text" id="filtroActividades" placeholder="Filtrar por fecha, técnico/a, tipo, observaciones...">
+      </div>
+
+      <div id="contenidoListadoActividades" class="tabla-actividades-modal"></div>
+    </div>
+  </dialog>
+
+
   <dialog id="modalActividad">
     <form method="dialog" class="modal-card modal-actividad-card">
       <h2 id="actividadModalTitulo">Registrar actividad</h2>
@@ -123,6 +143,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260717-editar-actividad-fix"></script>
+  <script src="js/app.js?v=20260717-modal-listado-actividades"></script>
 </body>
 </html>

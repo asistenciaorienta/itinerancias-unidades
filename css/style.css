@@ -387,3 +387,99 @@ dialog#modalActividad::backdrop {
   font-size: .85rem;
   white-space: nowrap;
 }
+
+/* Modal listado de actividades */
+dialog#modalListadoActividades {
+  width: min(1180px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  border: 0;
+  border-radius: 1rem;
+  padding: 0;
+}
+
+dialog#modalListadoActividades::backdrop {
+  background: rgba(15, 23, 42, .45);
+}
+
+.modal-listado-actividades-card {
+  padding: 1.25rem;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.modal-listado-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.modal-listado-header h2 {
+  margin: 0;
+}
+
+.filtro-actividad-modal {
+  margin-bottom: .9rem;
+}
+
+.filtro-actividad-modal input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: .75rem .85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: .75rem;
+  font: inherit;
+}
+
+.tabla-actividades-modal {
+  min-width: 920px;
+}
+
+.actividad-tabla-cabecera,
+.actividad-tabla-row {
+  display: grid;
+  grid-template-columns: 92px minmax(130px, 1.2fr) 70px minmax(130px, 1fr) 70px minmax(180px, 1.4fr) 78px;
+  gap: .65rem;
+  align-items: center;
+}
+
+.actividad-tabla-cabecera {
+  font-weight: 800;
+  color: #334155;
+  padding: .6rem .7rem;
+  border-bottom: 2px solid #cbd5e1;
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.actividad-tabla-row {
+  padding: .55rem .7rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.actividad-tabla-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actividad-resumen {
+  margin-top: .65rem;
+}
+
+.sin-resultados-actividad {
+  padding: 1rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: .75rem;
+  background: #f8fafc;
+}
+
+@media (max-width: 900px) {
+  .modal-listado-header {
+    flex-direction: column;
+  }
+}
