@@ -166,12 +166,18 @@ async function cargarItineranciasPublicadasEntidad(convocatoriaId, unidadNombre)
   return (data || []).filter(i => entidadesCoinciden(i.entidad, unidadNombre));
 }
 
-async function cargarPropuestasEntidad(convocatoriaId) {
-  const { data, error } = await supabaseClient
+async function cargarPropuestasEntidad(convocatoriaId, unidadId) {
+  let query = supabaseClient
     .from("itinerancias_propuestas")
     .select("*")
     .eq("convocatoria_id", convocatoriaId)
     .order("created_at", { ascending: false });
+
+  if (unidadId) {
+    query = query.eq("unidad_id", unidadId);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
@@ -414,7 +420,7 @@ function accionesItemUnificado(item) {
 function renderPanelUnificado() {
   const cont = $("listaUnificada");
   if (!cont) {
-    renderItineranciasPublicadas(publicadasActuales, perfilActual?.unidades?.nombre || "Unidad");
+    renderPanelUnificado();
     renderPropuestas(propuestasActuales);
     return;
   }
@@ -506,7 +512,7 @@ async function cargarPanel() {
   try {
     const [publicadas, propuestas] = await Promise.all([
       cargarItineranciasPublicadasEntidad(convocatoriaActual.id, unidadNombre),
-      cargarPropuestasEntidad(convocatoriaActual.id)
+      cargarPropuestasEntidad(convocatoriaActual.id, perfil.unidad_id)
     ]);
 
     publicadasActuales = publicadas;
