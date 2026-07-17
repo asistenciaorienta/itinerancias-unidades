@@ -535,7 +535,7 @@ async function guardarActividadItinerancia() {
   }
 
   if (totalMin === 0 && observaciones.length < 5) {
-    mostrarMsgActividad("Si el tiempo total es 00:00, las observaciones son obligatorias y deben tener al menos 5 caracteres.", true);
+    mostrarMsgActividad("Si el tiempo total es 00:00, las observaciones son obligatorias.", true);
     return;
   }
 
