@@ -9,6 +9,18 @@ function mostrarMsg(texto, error = false) {
   msg.className = error ? "msg error" : "msg ok";
 }
 
+function mostrarMsgActividad(texto, error = false) {
+  const msg = $("msgActividad");
+  if (!msg) {
+    mostrarMsg(texto, error);
+    return;
+  }
+
+  msg.textContent = texto || "";
+  msg.className = error ? "msg msg-modal error" : "msg msg-modal ok";
+}
+
+
 function normalizarTexto(v = "") {
   return String(v || "")
     .normalize("NFD")
@@ -434,6 +446,7 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada) {
   setValorActividad("actividadHoras", "0");
   setValorActividad("actividadMinutos", "5");
   setValorActividad("actividadObservaciones", "");
+  mostrarMsgActividad("");
 
   const info = $("actividadInfo");
   if (info) {
@@ -450,7 +463,7 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada) {
 
 async function guardarActividadItinerancia() {
   if (!perfilActual || !convocatoriaActual || !itineranciaActividadActual) {
-    mostrarMsg("No se ha podido identificar la unidad, convocatoria o itinerancia.", true);
+    mostrarMsgActividad("No se ha podido identificar la unidad, convocatoria o itinerancia.", true);
     return;
   }
 
@@ -463,37 +476,37 @@ async function guardarActividadItinerancia() {
   const observaciones = getValorActividad("actividadObservaciones");
 
   if (!fecha) {
-    mostrarMsg("La fecha de actividad es obligatoria.", true);
+    mostrarMsgActividad("La fecha de actividad es obligatoria.", true);
     return;
   }
 
   if (!tecnico) {
-    mostrarMsg("El personal técnico es obligatorio.", true);
+    mostrarMsgActividad("El personal técnico es obligatorio.", true);
     return;
   }
 
   if (!tipo) {
-    mostrarMsg("El tipo de atención es obligatorio.", true);
+    mostrarMsgActividad("El tipo de atención es obligatorio.", true);
     return;
   }
 
   if (!atencionesTexto || !Number.isInteger(atenciones) || atenciones < 1) {
-    mostrarMsg("El número de atenciones debe ser como mínimo 1.", true);
+    mostrarMsgActividad("El número de atenciones debe ser como mínimo 1.", true);
     return;
   }
 
   if (totalMin > 420) {
-    mostrarMsg("El tiempo total no puede superar 07:00 horas.", true);
+    mostrarMsgActividad("El tiempo total no puede superar 07:00 horas.", true);
     return;
   }
 
   if (totalMin > 0 && totalMin < 5) {
-    mostrarMsg("El tiempo mínimo es 00:05.", true);
+    mostrarMsgActividad("El tiempo mínimo es 00:05.", true);
     return;
   }
 
   if (totalMin === 0 && observaciones.length < 5) {
-    mostrarMsg("Si el tiempo total es 00:00, las observaciones son obligatorias y deben tener al menos 5 caracteres.", true);
+    mostrarMsgActividad("Si el tiempo total es 00:00, las observaciones son obligatorias y deben tener al menos 5 caracteres.", true);
     return;
   }
 
@@ -516,11 +529,12 @@ async function guardarActividadItinerancia() {
 
   if (error) {
     console.error(error);
-    mostrarMsg("No se ha podido guardar la actividad: " + error.message, true);
+    mostrarMsgActividad("No se ha podido guardar la actividad: " + error.message, true);
     return;
   }
 
   $("modalActividad").close();
+  mostrarMsgActividad("");
   mostrarMsg("Actividad registrada correctamente.");
 }
 
