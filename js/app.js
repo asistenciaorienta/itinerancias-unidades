@@ -499,13 +499,13 @@ async function guardarActividadItinerancia() {
     return;
   }
 
-  if (!tipo) {
-    mostrarMsgActividad("El tipo de atención es obligatorio.", true);
+  if (atencionesTexto === "" || !Number.isInteger(atenciones) || atenciones < 0) {
+    mostrarMsgActividad("El número de atenciones es obligatorio y debe ser 0 o superior.", true);
     return;
   }
 
-  if (atencionesTexto === "" || !Number.isInteger(atenciones) || atenciones < 0) {
-    mostrarMsgActividad("El número de atenciones es obligatorio y debe ser 0 o superior.", true);
+  if (atenciones > 0 && !tipo) {
+    mostrarMsgActividad("El tipo de atención es obligatorio cuando hay una o más atenciones.", true);
     return;
   }
 
@@ -529,8 +529,8 @@ async function guardarActividadItinerancia() {
     return;
   }
 
-  if (totalMin > 0 && totalMin < 5) {
-    mostrarMsgActividad("El tiempo mínimo es 00:05.", true);
+  if (totalMin > 0 && totalMin < 1) {
+    mostrarMsgActividad("El tiempo mínimo es 00:01.", true);
     return;
   }
 
@@ -546,7 +546,7 @@ async function guardarActividadItinerancia() {
     fecha_actividad: fecha,
     personal_tecnico: tecnico,
     numero_atenciones: atenciones,
-    tipo_atencion: tipo,
+    tipo_atencion: tipo || null,
     tiempo_total_minutos: totalMin,
     observaciones: observaciones || null,
     creada_por: perfilActual.id

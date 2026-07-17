@@ -67,7 +67,7 @@
 
         <label>
           Tipo de atención
-          <select id="actividadTipo" required>
+          <select id="actividadTipo">
             <option value="">Seleccionar...</option>
             <option value="Presencial Individual">Presencial Individual</option>
             <option value="Presencial Grupal">Presencial Grupal</option>
@@ -86,6 +86,10 @@
           <select id="actividadMinutos" required>
             <option value="">Seleccionar...</option>
             <option value="0">00</option>
+            <option value="1">01</option>
+            <option value="2">02</option>
+            <option value="3">03</option>
+            <option value="4">04</option>
             <option value="5">05</option>
             <option value="10">10</option>
             <option value="15">15</option>
@@ -118,6 +122,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260717-actividad-campos-vacios"></script>
+  <script src="js/app.js?v=20260717-actividad-tipo-opcional-minutos"></script>
 </body>
 </html>
