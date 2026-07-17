@@ -391,12 +391,16 @@ function construirItemsUnificados() {
     data: i
   }));
 
-  const propuestas = (propuestasActuales || []).map(p => ({
-    id: `prop-${p.id}`,
-    tipoListado: "PROPUESTA",
-    estado: p.estado || "BORRADOR",
-    data: p
-  }));
+  const propuestas = (propuestasActuales || [])
+    // Las propuestas PUBLICADA ya han generado una itinerancia publicada real.
+    // No se muestran para evitar duplicidades visuales.
+    .filter(p => String(p.estado || "").toUpperCase() !== "PUBLICADA")
+    .map(p => ({
+      id: `prop-${p.id}`,
+      tipoListado: "PROPUESTA",
+      estado: p.estado || "BORRADOR",
+      data: p
+    }));
 
   return [...publicadas, ...propuestas].sort((a, b) => {
     const fa = a.data.fecha_actividad || a.data.fecha_inicio || a.data.created_at || "";
@@ -407,8 +411,11 @@ function construirItemsUnificados() {
 
 function accionesItemUnificado(item) {
   const d = item.data || {};
+  const estado = String(item.estado || "").toUpperCase();
 
-  if (item.estado === "PUBLICADA") {
+  // Solo las ITINERANCIAS reales publicadas permiten registrar/ver actividad
+  // y solicitar modificación. Las PROPUESTAS publicadas no se muestran.
+  if (estado === "PUBLICADA" && item.tipoListado === "ITINERANCIA") {
     return `
       <button class="btn" onclick="abrirModalActividad('${escapeHtml(d.id)}')">
         Registrar actividad
@@ -422,7 +429,7 @@ function accionesItemUnificado(item) {
     `;
   }
 
-  if (["BORRADOR", "RECHAZADA"].includes(String(item.estado || "").toUpperCase())) {
+  if (item.tipoListado === "PROPUESTA" && ["BORRADOR", "RECHAZADA"].includes(estado)) {
     return `
       <a class="btn secundario" href="nueva-itinerancia.html?id=${encodeURIComponent(d.id)}">
         Editar propuesta
