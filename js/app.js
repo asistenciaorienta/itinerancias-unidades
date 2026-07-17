@@ -426,11 +426,16 @@ function renderPanelUnificado() {
   }
 
   const filtroTexto = String($("filtroPanelUnificado")?.value || "").trim().toLowerCase();
-  const filtroEstado = String($("filtroEstadoUnificado")?.value || "").trim().toUpperCase();
+  const filtroEstado = String($("filtroEstadoUnificado")?.value || "ACTIVAS").trim().toUpperCase();
 
   let items = construirItemsUnificados();
 
-  if (filtroEstado) {
+  if (filtroEstado === "ACTIVAS") {
+    items = items.filter(item => {
+      const estado = String(item.estado || "").toUpperCase();
+      return ["PUBLICADA", "BORRADOR", "PENDIENTE_VALIDACION"].includes(estado);
+    });
+  } else if (filtroEstado) {
     items = items.filter(item => String(item.estado || "").toUpperCase() === filtroEstado);
   }
 

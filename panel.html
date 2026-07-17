@@ -29,10 +29,11 @@
       <div class="filtros-unificados">
         <input type="text" id="filtroPanelUnificado" placeholder="Filtrar por municipio, estado, técnico/a, frecuencia, dirección, observaciones...">
         <select id="filtroEstadoUnificado">
-          <option value="">Todos los estados</option>
+          <option value="ACTIVAS" selected>Activas</option>
+          <option value="">Todas</option>
           <option value="PUBLICADA">Publicadas</option>
-          <option value="BORRADOR">Borrador</option>
-          <option value="PENDIENTE_VALIDACION">Pendientes de validación</option>
+          <option value="BORRADOR">Borradores</option>
+          <option value="PENDIENTE_VALIDACION">Pendientes</option>
           <option value="RECHAZADA">Rechazadas</option>
           <option value="ARCHIVADA">Archivadas</option>
         </select>
@@ -146,7 +147,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260717-panel-unificado-limpio"></script>
+  <script src="js/app.js?v=20260717-panel-activas-defecto"></script>
 </div>
 </body>
 </html>
