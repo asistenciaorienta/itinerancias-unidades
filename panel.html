@@ -22,10 +22,23 @@
   <main class="contenedor ancho">
 
     <section class="card">
-      <h2>Mis itinerancias publicadas</h2>
+      <h2>Mis itinerancias y propuestas</h2>
       <p class="muted">
         Desde aquí puedes consultar tus itinerancias actualmente publicadas y solicitar modificaciones.
       </p>
+      <div class="filtros-unificados">
+        <input type="text" id="filtroPanelUnificado" placeholder="Filtrar por municipio, estado, técnico/a, frecuencia, dirección, observaciones...">
+        <select id="filtroEstadoUnificado">
+          <option value="">Todos los estados</option>
+          <option value="PUBLICADA">Publicadas</option>
+          <option value="BORRADOR">Borrador</option>
+          <option value="PENDIENTE_VALIDACION">Pendientes de validación</option>
+          <option value="RECHAZADA">Rechazadas</option>
+          <option value="ARCHIVADA">Archivadas</option>
+        </select>
+      </div>
+      <div id="listaUnificada" class="lista-unificada"></div>
+      <div class="oculto" id="bloqueListasAntiguas">
       <div id="listaPublicadas" class="lista"></div>
     </section>
 
@@ -143,6 +156,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260717-avisos-arriba"></script>
+  <script src="js/app.js?v=20260717-panel-unificado"></script>
+</div>
 </body>
 </html>

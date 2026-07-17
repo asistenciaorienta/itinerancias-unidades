@@ -318,9 +318,169 @@ function renderPropuestas(lista) {
 let perfilActual = null;
 let convocatoriaActual = null;
 let publicadasActuales = [];
+let propuestasActuales = [];
 let itineranciaActividadActual = null;
 let itineranciaListadoActividadesActual = null;
 let actividadesActuales = [];
+
+
+function estadoEtiquetaClase(estado) {
+  const e = String(estado || "").toUpperCase();
+  if (e === "PUBLICADA") return "estado-publicada";
+  if (e === "BORRADOR") return "estado-borrador";
+  if (e === "PENDIENTE_VALIDACION") return "estado-pendiente";
+  if (e === "RECHAZADA") return "estado-rechazada";
+  if (e === "ARCHIVADA") return "estado-archivada";
+  return "estado-neutro";
+}
+
+function estadoLegible(estado) {
+  const e = String(estado || "").toUpperCase();
+  if (e === "PENDIENTE_VALIDACION") return "PENDIENTE";
+  return e || "SIN ESTADO";
+}
+
+function textoBusquedaItemUnificado(item) {
+  const d = item.data || {};
+  return [
+    item.tipoListado,
+    item.estado,
+    d.titulo,
+    d.entidad,
+    d.municipio,
+    d.dias,
+    d.horario,
+    d.frecuencia,
+    d.direccion,
+    d.telefono,
+    d.tecnico_orienta,
+    d.contacto,
+    d.colectivo,
+    d.observaciones_publicas,
+    d.observaciones_unidad
+  ].join(" ").toLowerCase();
+}
+
+function construirItemsUnificados() {
+  const publicadas = (publicadasActuales || []).map(i => ({
+    id: `pub-${i.id}`,
+    tipoListado: "ITINERANCIA",
+    estado: "PUBLICADA",
+    data: i
+  }));
+
+  const propuestas = (propuestasActuales || []).map(p => ({
+    id: `prop-${p.id}`,
+    tipoListado: "PROPUESTA",
+    estado: p.estado || "BORRADOR",
+    data: p
+  }));
+
+  return [...publicadas, ...propuestas].sort((a, b) => {
+    const fa = a.data.fecha_actividad || a.data.fecha_inicio || a.data.created_at || "";
+    const fb = b.data.fecha_actividad || b.data.fecha_inicio || b.data.created_at || "";
+    return String(fb).localeCompare(String(fa));
+  });
+}
+
+function accionesItemUnificado(item) {
+  const d = item.data || {};
+
+  if (item.estado === "PUBLICADA") {
+    return `
+      <button class="btn" onclick="abrirModalActividad('${escapeHtml(d.id)}')">
+        Registrar actividad
+      </button>
+      <button class="btn secundario" onclick="abrirModalListadoActividades('${escapeHtml(d.id)}')">
+        Ver actividades
+      </button>
+      <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(d.id)}')">
+        Solicitar modificación
+      </button>
+    `;
+  }
+
+  if (["BORRADOR", "RECHAZADA"].includes(String(item.estado || "").toUpperCase())) {
+    return `
+      <a class="btn secundario" href="nueva-itinerancia.html?id=${encodeURIComponent(d.id)}">
+        Editar propuesta
+      </a>
+    `;
+  }
+
+  return "";
+}
+
+function renderPanelUnificado() {
+  const cont = $("listaUnificada");
+  if (!cont) {
+    renderItineranciasPublicadas(publicadasActuales, perfilActual?.unidades?.nombre || "Unidad");
+    renderPropuestas(propuestasActuales);
+    return;
+  }
+
+  const filtroTexto = String($("filtroPanelUnificado")?.value || "").trim().toLowerCase();
+  const filtroEstado = String($("filtroEstadoUnificado")?.value || "").trim().toUpperCase();
+
+  let items = construirItemsUnificados();
+
+  if (filtroEstado) {
+    items = items.filter(item => String(item.estado || "").toUpperCase() === filtroEstado);
+  }
+
+  if (filtroTexto) {
+    items = items.filter(item => textoBusquedaItemUnificado(item).includes(filtroTexto));
+  }
+
+  if (!items.length) {
+    cont.innerHTML = `<p class="muted sin-resultados-panel">No hay resultados con los filtros aplicados.</p>`;
+    return;
+  }
+
+  cont.innerHTML = items.map(item => {
+    const d = item.data || {};
+    const titulo = d.titulo || d.entidad || "Itinerancia";
+    const municipio = d.municipio || "";
+    const dias = d.dias || d.horario || "";
+    const tecnico = d.tecnico_orienta || d.contacto || "";
+    const direccion = d.direccion || "";
+    const tel = d.telefono ? ` · Tel. ${escapeHtml(d.telefono)}` : "";
+    const etiqueta = estadoLegible(item.estado);
+
+    return `
+      <article class="item item-unificado">
+        <div class="item-unificado-main">
+          <div class="item-unificado-top">
+            <h3>${escapeHtml(titulo)}</h3>
+            <span class="estado-badge ${estadoEtiquetaClase(item.estado)}">${escapeHtml(etiqueta)}</span>
+          </div>
+
+          <p class="muted">
+            ${escapeHtml(item.tipoListado)}
+            ${municipio ? " · " + escapeHtml(municipio) : ""}
+            ${dias ? " · " + escapeHtml(dias) : ""}
+          </p>
+
+          <p>
+            ${escapeHtml(direccion)}
+            ${tel}
+          </p>
+
+          <p class="muted">
+            ${escapeHtml(tecnico)}
+            ${d.colectivo ? " · " + escapeHtml(d.colectivo) : ""}
+          </p>
+
+          ${item.estado === "PUBLICADA" ? renderActividadesItinerancia(d.id) : ""}
+        </div>
+
+        <div class="acciones-item">
+          ${accionesItemUnificado(item)}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
 
 async function cargarPanel() {
   const perfil = await obtenerPerfil();
@@ -350,10 +510,10 @@ async function cargarPanel() {
     ]);
 
     publicadasActuales = publicadas;
+    propuestasActuales = propuestas;
     await cargarActividadesUnidad(convocatoriaActual.id);
 
-    renderItineranciasPublicadas(publicadas, unidadNombre);
-    renderPropuestas(propuestas);
+    renderPanelUnificado();
 
   } catch (error) {
     console.error(error);
@@ -773,7 +933,7 @@ async function guardarActividadItinerancia() {
   mostrarMsgActividad("");
 
   await cargarActividadesUnidad(convocatoriaActual.id);
-  renderItineranciasPublicadas(publicadasActuales, perfilActual?.unidades?.nombre || "Unidad");
+  renderPanelUnificado();
 
   if ($("modalListadoActividades")?.open) {
     renderListadoActividadesModal();
@@ -980,6 +1140,20 @@ document.addEventListener("DOMContentLoaded", () => {
   if (filtroActividades) {
     filtroActividades.addEventListener("input", () => {
       renderListadoActividadesModal();
+    });
+  }
+
+  const filtroPanelUnificado = $("filtroPanelUnificado");
+  if (filtroPanelUnificado) {
+    filtroPanelUnificado.addEventListener("input", () => {
+      renderPanelUnificado();
+    });
+  }
+
+  const filtroEstadoUnificado = $("filtroEstadoUnificado");
+  if (filtroEstadoUnificado) {
+    filtroEstadoUnificado.addEventListener("change", () => {
+      renderPanelUnificado();
     });
   }
 });
