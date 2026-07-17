@@ -89,7 +89,7 @@ async function obtenerPerfil() {
 
   const { data, error } = await supabaseClient
     .from("usuarios_perfiles")
-    .select("id,email,nombre,rol,unidad_id,activo,unidades(nombre)")
+    .select("id,email,nombre,rol,unidad_id,activo,unidades(nombre,origen_interno_id)")
     .eq("id", session.user.id)
     .single();
 
@@ -152,8 +152,11 @@ async function solicitarAcceso(payload) {
   if (form) form.reset();
 }
 
-async function cargarItineranciasPublicadasEntidad(convocatoriaId, unidadNombre) {
-  const { data, error } = await supabaseClient
+async function cargarItineranciasPublicadasEntidad(convocatoriaId, perfil) {
+  const unidadNombre = perfil?.unidades?.nombre || "";
+  const origenInternoId = perfil?.unidades?.origen_interno_id;
+
+  let query = supabaseClient
     .from("itinerancias_publicadas")
     .select("*")
     .eq("convocatoria_id", convocatoriaId)
@@ -161,9 +164,22 @@ async function cargarItineranciasPublicadasEntidad(convocatoriaId, unidadNombre)
     .order("municipio", { ascending: true })
     .order("entidad", { ascending: true });
 
+  if (origenInternoId !== null && origenInternoId !== undefined && origenInternoId !== "") {
+    query = query.eq("unidad_origen_interno_id", origenInternoId);
+  }
+
+  const { data, error } = await query;
+
   if (error) throw error;
 
-  return (data || []).filter(i => entidadesCoinciden(i.entidad, unidadNombre));
+  const lista = data || [];
+
+  // Fallback solo si la unidad no tiene origen_interno_id informado.
+  if (origenInternoId === null || origenInternoId === undefined || origenInternoId === "") {
+    return lista.filter(i => entidadesCoinciden(i.entidad, unidadNombre));
+  }
+
+  return lista;
 }
 
 async function cargarPropuestasEntidad(convocatoriaId, unidadId) {
@@ -426,7 +442,7 @@ function renderPanelUnificado() {
   }
 
   const filtroTexto = String($("filtroPanelUnificado")?.value || "").trim().toLowerCase();
-  const filtroEstado = String($("filtroEstadoUnificado")?.value || "ACTIVAS").trim().toUpperCase();
+  const filtroEstado = String($("filtroEstadoUnificado")?.value || "PUBLICADA").trim().toUpperCase();
 
   let items = construirItemsUnificados();
 
@@ -516,7 +532,7 @@ async function cargarPanel() {
 
   try {
     const [publicadas, propuestas] = await Promise.all([
-      cargarItineranciasPublicadasEntidad(convocatoriaActual.id, unidadNombre),
+      cargarItineranciasPublicadasEntidad(convocatoriaActual.id, perfil),
       cargarPropuestasEntidad(convocatoriaActual.id, perfil.unidad_id)
     ]);
 
