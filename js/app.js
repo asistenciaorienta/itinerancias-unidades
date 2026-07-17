@@ -5,8 +5,13 @@ function $(id) {
 function mostrarMsg(texto, error = false) {
   const msg = $("msg");
   if (!msg) return;
+
   msg.textContent = texto || "";
-  msg.className = error ? "msg error" : "msg ok";
+  msg.className = error ? "msg aviso-global error" : "msg aviso-global ok";
+
+  if (texto) {
+    msg.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function mostrarMsgActividad(texto, error = false) {
@@ -18,6 +23,10 @@ function mostrarMsgActividad(texto, error = false) {
 
   msg.textContent = texto || "";
   msg.className = error ? "msg msg-modal error" : "msg msg-modal ok";
+
+  if (texto) {
+    msg.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 

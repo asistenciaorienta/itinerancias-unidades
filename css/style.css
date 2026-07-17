@@ -483,3 +483,61 @@ dialog#modalListadoActividades::backdrop {
     flex-direction: column;
   }
 }
+
+/* Avisos superiores */
+.aviso-global {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5000;
+  width: min(760px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: .85rem 1rem;
+  border-radius: .85rem;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+}
+
+.aviso-global:empty {
+  display: none;
+}
+
+.aviso-global.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.aviso-global.ok {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.msg-modal {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: .75rem 0 1rem 0;
+  padding: .75rem .85rem;
+  border-radius: .7rem;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .08);
+}
+
+.msg-modal:empty {
+  display: none;
+}
+
+.msg-modal.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.msg-modal.ok {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
