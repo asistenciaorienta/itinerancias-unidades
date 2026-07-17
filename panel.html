@@ -62,7 +62,7 @@
 
         <label>
           Nº de atenciones
-          <input type="number" id="actividadAtenciones" min="1" step="1" value="1" required>
+          <input type="number" id="actividadAtenciones" min="0" step="1" required placeholder="Ej.: 0, 1, 2...">
         </label>
 
         <label>
@@ -78,12 +78,13 @@
 
         <label>
           Horas
-          <input type="number" id="actividadHoras" min="0" max="7" step="1" value="0" required>
+          <input type="number" id="actividadHoras" min="0" max="7" step="1" required placeholder="Horas">
         </label>
 
         <label>
           Minutos
           <select id="actividadMinutos" required>
+            <option value="">Seleccionar...</option>
             <option value="0">00</option>
             <option value="5">05</option>
             <option value="10">10</option>
@@ -117,6 +118,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260716-actividad-msg-modal"></script>
+  <script src="js/app.js?v=20260717-actividad-campos-vacios"></script>
 </body>
 </html>

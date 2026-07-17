@@ -423,8 +423,20 @@ function getValorActividad(id) {
 }
 
 function minutosActividad() {
-  const h = Number(getValorActividad("actividadHoras") || 0);
-  const m = Number(getValorActividad("actividadMinutos") || 0);
+  const hTxt = getValorActividad("actividadHoras");
+  const mTxt = getValorActividad("actividadMinutos");
+
+  if (hTxt === "" || mTxt === "") {
+    return null;
+  }
+
+  const h = Number(hTxt);
+  const m = Number(mTxt);
+
+  if (!Number.isInteger(h) || !Number.isInteger(m)) {
+    return null;
+  }
+
   return h * 60 + m;
 }
 
@@ -441,10 +453,10 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada) {
   setValorActividad("actividadItineranciaId", itinerancia.id);
   setValorActividad("actividadFecha", hoyISO());
   setValorActividad("actividadTecnico", itinerancia.contacto || itinerancia.tecnico_orienta || "");
-  setValorActividad("actividadAtenciones", "1");
+  setValorActividad("actividadAtenciones", "");
   setValorActividad("actividadTipo", "");
-  setValorActividad("actividadHoras", "0");
-  setValorActividad("actividadMinutos", "5");
+  setValorActividad("actividadHoras", "");
+  setValorActividad("actividadMinutos", "");
   setValorActividad("actividadObservaciones", "");
   mostrarMsgActividad("");
 
@@ -471,7 +483,9 @@ async function guardarActividadItinerancia() {
   const tecnico = getValorActividad("actividadTecnico");
   const tipo = getValorActividad("actividadTipo");
   const atencionesTexto = getValorActividad("actividadAtenciones");
-  const atenciones = Number(atencionesTexto || 0);
+  const horasTexto = getValorActividad("actividadHoras");
+  const minutosTexto = getValorActividad("actividadMinutos");
+  const atenciones = Number(atencionesTexto);
   const totalMin = minutosActividad();
   const observaciones = getValorActividad("actividadObservaciones");
 
@@ -490,8 +504,23 @@ async function guardarActividadItinerancia() {
     return;
   }
 
-  if (!atencionesTexto || !Number.isInteger(atenciones) || atenciones < 1) {
-    mostrarMsgActividad("El número de atenciones debe ser como mínimo 1.", true);
+  if (atencionesTexto === "" || !Number.isInteger(atenciones) || atenciones < 0) {
+    mostrarMsgActividad("El número de atenciones es obligatorio y debe ser 0 o superior.", true);
+    return;
+  }
+
+  if (horasTexto === "") {
+    mostrarMsgActividad("Debes indicar las horas, aunque sean 0.", true);
+    return;
+  }
+
+  if (minutosTexto === "") {
+    mostrarMsgActividad("Debes indicar los minutos, aunque sean 00.", true);
+    return;
+  }
+
+  if (totalMin === null) {
+    mostrarMsgActividad("El tiempo total no es válido.", true);
     return;
   }
 
