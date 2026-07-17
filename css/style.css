@@ -742,3 +742,38 @@ body {
     border-radius: .85rem;
   }
 }
+
+/* Cabecera del panel de unidad */
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  position: relative;
+}
+
+.panel-header h1 {
+  margin: 0 0 .35rem 0;
+}
+
+.panel-header .muted {
+  margin: 0;
+}
+
+.btn-logout-panel {
+  margin-left: auto;
+  white-space: nowrap;
+  align-self: flex-start;
+}
+
+@media (max-width: 640px) {
+  .panel-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .btn-logout-panel {
+    width: 100%;
+    margin-left: 0;
+  }
+}
