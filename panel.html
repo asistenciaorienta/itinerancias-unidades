@@ -57,12 +57,12 @@
 
         <label>
           Personal técnico
-          <input type="text" id="actividadTecnico">
+          <input type="text" id="actividadTecnico" required>
         </label>
 
         <label>
           Nº de atenciones
-          <input type="number" id="actividadAtenciones" min="0" step="1" value="0" required>
+          <input type="number" id="actividadAtenciones" min="1" step="1" value="1" required>
         </label>
 
         <label>
@@ -101,7 +101,7 @@
 
         <label class="span-2">
           Observaciones
-          <textarea id="actividadObservaciones" rows="4" placeholder="Obligatorio si el tiempo total es 00:00"></textarea>
+          <textarea id="actividadObservaciones" rows="4" minlength="5" placeholder="Obligatorio si el tiempo total es 00:00. Mínimo 5 caracteres."></textarea>
         </label>
       </div>
 
@@ -115,6 +115,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260716-actividad-1"></script>
+  <script src="js/app.js?v=20260716-actividad-validacion"></script>
 </body>
 </html>

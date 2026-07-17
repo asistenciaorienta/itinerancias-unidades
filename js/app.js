@@ -429,10 +429,10 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada) {
   setValorActividad("actividadItineranciaId", itinerancia.id);
   setValorActividad("actividadFecha", hoyISO());
   setValorActividad("actividadTecnico", itinerancia.contacto || itinerancia.tecnico_orienta || "");
-  setValorActividad("actividadAtenciones", "0");
+  setValorActividad("actividadAtenciones", "1");
   setValorActividad("actividadTipo", "");
   setValorActividad("actividadHoras", "0");
-  setValorActividad("actividadMinutos", "0");
+  setValorActividad("actividadMinutos", "5");
   setValorActividad("actividadObservaciones", "");
 
   const info = $("actividadInfo");
@@ -455,8 +455,10 @@ async function guardarActividadItinerancia() {
   }
 
   const fecha = getValorActividad("actividadFecha");
+  const tecnico = getValorActividad("actividadTecnico");
   const tipo = getValorActividad("actividadTipo");
-  const atenciones = Number(getValorActividad("actividadAtenciones") || 0);
+  const atencionesTexto = getValorActividad("actividadAtenciones");
+  const atenciones = Number(atencionesTexto || 0);
   const totalMin = minutosActividad();
   const observaciones = getValorActividad("actividadObservaciones");
 
@@ -465,13 +467,18 @@ async function guardarActividadItinerancia() {
     return;
   }
 
+  if (!tecnico) {
+    mostrarMsg("El personal técnico es obligatorio.", true);
+    return;
+  }
+
   if (!tipo) {
     mostrarMsg("El tipo de atención es obligatorio.", true);
     return;
   }
 
-  if (!Number.isInteger(atenciones) || atenciones < 0) {
-    mostrarMsg("El número de atenciones debe ser 0 o superior.", true);
+  if (!atencionesTexto || !Number.isInteger(atenciones) || atenciones < 1) {
+    mostrarMsg("El número de atenciones debe ser como mínimo 1.", true);
     return;
   }
 
@@ -485,8 +492,8 @@ async function guardarActividadItinerancia() {
     return;
   }
 
-  if (totalMin === 0 && !observaciones) {
-    mostrarMsg("Si el tiempo total es 00:00, las observaciones son obligatorias.", true);
+  if (totalMin === 0 && observaciones.length < 5) {
+    mostrarMsg("Si el tiempo total es 00:00, las observaciones son obligatorias y deben tener al menos 5 caracteres.", true);
     return;
   }
 
@@ -495,7 +502,7 @@ async function guardarActividadItinerancia() {
     unidad_id: perfilActual.unidad_id,
     convocatoria_id: convocatoriaActual.id,
     fecha_actividad: fecha,
-    personal_tecnico: getValorActividad("actividadTecnico") || null,
+    personal_tecnico: tecnico,
     numero_atenciones: atenciones,
     tipo_atencion: tipo,
     tiempo_total_minutos: totalMin,
