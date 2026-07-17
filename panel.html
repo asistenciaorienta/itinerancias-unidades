@@ -7,27 +7,29 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>Mis itinerancias</h1>
-      <p id="usuarioInfo" class="muted"></p>
-    </div>
+  <main class="container">
+    <header class="panel-header">
+      <div>
+        <h1>Panel de unidad</h1>
+        <p id="usuarioInfo" class="muted"></p>
+      </div>
+      <button type="button" id="btnLogout" class="secundario">Cerrar sesión</button>
+    </header>
 
-    <nav>
-      <a class="btn" href="nueva-itinerancia.html">Nueva propuesta</a>
-      <button id="btnLogout" class="btn peligro">Salir</button>
-    </nav>
-  </header>
+    <p id="msg" class="msg"></p>
 
-  <main class="contenedor ancho">
+    <section class="panel-unificado">
+      <div class="panel-unificado-header">
+        <div>
+          <h2>Mis itinerancias y propuestas</h2>
+          <p class="muted">Consulta tus itinerancias publicadas y las propuestas enviadas a Dirección Provincial.</p>
+        </div>
+        <a class="btn" href="nueva-itinerancia.html">Nueva propuesta</a>
+      </div>
 
-    <section class="card">
-      <h2>Mis itinerancias y propuestas</h2>
-      <p class="muted">
-        Desde aquí puedes consultar tus itinerancias actualmente publicadas y solicitar modificaciones.
-      </p>
       <div class="filtros-unificados">
         <input type="text" id="filtroPanelUnificado" placeholder="Filtrar por municipio, estado, técnico/a, frecuencia, dirección, observaciones...">
+
         <select id="filtroEstadoUnificado">
           <option value="ACTIVAS" selected>Activas</option>
           <option value="">Todas</option>
@@ -38,11 +40,19 @@
           <option value="ARCHIVADA">Archivadas</option>
         </select>
       </div>
-      <div id="listaUnificada" class="lista-unificada"></div>
-      <div class="oculto" id="bloqueListasAntiguas">
-      <div id="listaPublicadas" class="lista"></div>
+
+      <div id="listaUnificada" class="lista-unificada">
+        <p class="muted">Cargando itinerancias y propuestas...</p>
+      </div>
     </section>
-</main>
+
+    <div class="oculto">
+      <div id="listaPublicadas"></div>
+      <div id="listaPropuestas"></div>
+    </div>
+  </main>
+
+
 
 
   
@@ -63,6 +73,10 @@
       <div id="contenidoListadoActividades" class="tabla-actividades-modal"></div>
     </div>
   </dialog>
+
+
+  
+
 
 
   <dialog id="modalActividad">
@@ -145,9 +159,13 @@
   </dialog>
 
 
+  
+
+
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260717-panel-activas-defecto"></script>
-</div>
+  <script src="js/app.js?v=20260717-repara-panel-unificado"></script>
+
 </body>
 </html>
