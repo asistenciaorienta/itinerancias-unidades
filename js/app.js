@@ -1157,7 +1157,7 @@ function escapeHtml(v) {
 
 function obtenerIdPropuestaEdicion() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("propuesta");
+  return params.get("id") || params.get("propuesta");
 }
 
 function setValor(id, valor) {
