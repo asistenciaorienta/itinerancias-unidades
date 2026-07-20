@@ -490,6 +490,103 @@ function filtrarItemsPanelUnificadoPorAtencionesUnidad(items) {
   });
 }
 
+
+function claseEstadoAtencionesUnidad(item) {
+  const d = item?.data || item || {};
+
+  if (String(item?.estado || d?.estado || "").toUpperCase() !== "PUBLICADA") {
+    return "";
+  }
+
+  if (typeof estadoAtencionesPublicadaUnidad !== "function") return "";
+
+  const estado = estadoAtencionesPublicadaUnidad(d);
+
+  if (estado === "SIN") return " item-atenciones-sin";
+  if (estado === "DESACTUALIZADAS") return " item-atenciones-desactualizadas";
+  if (estado === "RECIENTES") return " item-atenciones-recientes";
+
+  return "";
+}
+
+function textoAvisoAtencionesUnidad(item) {
+  const d = item?.data || item || {};
+
+  if (String(item?.estado || d?.estado || "").toUpperCase() !== "PUBLICADA") {
+    return "";
+  }
+
+  if (typeof estadoAtencionesPublicadaUnidad !== "function") return "";
+
+  const estado = estadoAtencionesPublicadaUnidad(d);
+  const resumen = typeof resumenActividadPublicadaUnidad === "function"
+    ? resumenActividadPublicadaUnidad(d)
+    : null;
+
+  if (estado === "SIN") {
+    return `<p class="aviso-atenciones-item aviso-sin">Sin atenciones mecanizadas</p>`;
+  }
+
+  if (estado === "DESACTUALIZADAS") {
+    const fecha = resumen?.ultimaFecha ? ` Última fecha: ${escapeHtml(resumen.ultimaFecha)}.` : "";
+    return `<p class="aviso-atenciones-item aviso-desactualizada">Atenciones desactualizadas.${fecha}</p>`;
+  }
+
+  if (estado === "RECIENTES") {
+    return `<p class="aviso-atenciones-item aviso-ok">Atenciones recientes</p>`;
+  }
+
+  return "";
+}
+
+function asegurarAvisoSuperiorAtencionesUnidad() {
+  let aviso = document.getElementById("avisoSuperiorAtencionesUnidad");
+
+  if (aviso) return aviso;
+
+  aviso = document.createElement("section");
+  aviso.id = "avisoSuperiorAtencionesUnidad";
+  aviso.className = "aviso-superior-atenciones-unidad oculto";
+
+  const panel = document.querySelector(".panel-unificado");
+  const referencia = document.getElementById("resumenAtencionesUnidad") || panel;
+
+  if (referencia && referencia.parentElement) {
+    referencia.parentElement.insertBefore(aviso, referencia);
+  } else {
+    (document.querySelector("main") || document.body).prepend(aviso);
+  }
+
+  return aviso;
+}
+
+function renderAvisoSuperiorAtencionesUnidad() {
+  const aviso = asegurarAvisoSuperiorAtencionesUnidad();
+
+  const lista = Array.isArray(publicadasResumenUnidadBase) ? publicadasResumenUnidadBase : [];
+
+  if (!lista.length || typeof estadoAtencionesPublicadaUnidad !== "function") {
+    aviso.classList.add("oculto");
+    aviso.innerHTML = "";
+    return;
+  }
+
+  const sin = lista.filter(p => estadoAtencionesPublicadaUnidad(p) === "SIN").length;
+  const desactualizadas = lista.filter(p => estadoAtencionesPublicadaUnidad(p) === "DESACTUALIZADAS").length;
+
+  if (!sin && !desactualizadas) {
+    aviso.classList.add("oculto");
+    aviso.innerHTML = "";
+    return;
+  }
+
+  aviso.classList.remove("oculto");
+  aviso.innerHTML = `
+    <strong>Atención: hay registros de atenciones pendientes de revisar.</strong>
+    <span>${sin} itinerancia(s) sin atenciones mecanizadas y ${desactualizadas} desactualizada(s).</span>
+  `;
+}
+
 function renderPanelUnificado() {
   const cont = $("listaUnificada");
   if (!cont) {
@@ -532,9 +629,11 @@ function renderPanelUnificado() {
     const direccion = d.direccion || "";
     const tel = d.telefono ? ` · Tel. ${escapeHtml(d.telefono)}` : "";
     const etiqueta = etiquetaItemUnificado(item);
+    const claseAtenciones = claseEstadoAtencionesUnidad(item);
+    const avisoAtenciones = textoAvisoAtencionesUnidad(item);
 
     return `
-      <article class="item item-unificado">
+      <article class="item item-unificado${claseAtenciones}">
         <div class="item-unificado-main">
           <div class="item-unificado-top">
             <h3>${escapeHtml(titulo)}</h3>
@@ -557,6 +656,7 @@ function renderPanelUnificado() {
             ${d.colectivo ? " · " + escapeHtml(d.colectivo) : ""}
           </p>
 
+          ${avisoAtenciones}
           ${item.estado === "PUBLICADA" ? renderActividadesItinerancia(d.id) : ""}
         </div>
 
@@ -1646,6 +1746,8 @@ window.filtrarResumenAtencionesUnidad = function filtrarResumenAtencionesUnidad(
   filtroAtencionesUnidadResumen = String(tipo || "TODAS").toUpperCase();
 
   renderResumenAtencionesUnidad(publicadasResumenUnidadBase);
+  renderAvisoSuperiorAtencionesUnidad();
+        renderAvisoSuperiorAtencionesUnidad();
 
   if (typeof renderPanelUnificado === "function") {
     renderPanelUnificado();
