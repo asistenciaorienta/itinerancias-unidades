@@ -872,7 +872,7 @@ async function guardarActividadItinerancia() {
   const observaciones = getValorActividad("actividadObservaciones");
 
   if (!fecha) {
-    mostrarMsgActividad("La fecha de actividad es obligatoria.", true);
+    mostrarMsgActividad("La fecha de las atenciones es obligatoria.", true);
     return;
   }
 
