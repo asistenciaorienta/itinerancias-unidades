@@ -231,7 +231,7 @@ function renderActividadesItinerancia(idPublicada) {
   const ultima = actividades[0];
 
   if (!total) {
-    return `<p class="muted actividad-resumen">Sin actividad registrada todavía.</p>`;
+    return `<p class="muted actividad-resumen">Sin atención registrada todavía.</p>`;
   }
 
   return `
@@ -258,7 +258,7 @@ async function cargarActividadesUnidad(convocatoriaId) {
 
   if (error) {
     console.error(error);
-    mostrarMsg("No se han podido cargar las actividades registradas: " + error.message, true);
+    mostrarMsg("No se han podido cargar las atenciones registradas: " + error.message, true);
     actividadesActuales = [];
     return;
   }
@@ -299,10 +299,10 @@ function renderItineranciasPublicadas(lista, unidadNombre) {
       </div>
       <div class="acciones-item">
         <button class="btn" onclick="abrirModalActividad('${escapeHtml(i.id)}')">
-          Registrar actividad
+          Registrar atenciones
         </button>
         <button class="btn secundario" onclick="abrirModalListadoActividades('${escapeHtml(i.id)}')">
-          Ver actividades
+          Ver Registro de Atenciones
         </button>
         <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(i.id)}')">
           Solicitar modificación
@@ -418,10 +418,10 @@ function accionesItemUnificado(item) {
   if (estado === "PUBLICADA" && item.tipoListado === "ITINERANCIA") {
     return `
       <button class="btn" onclick="abrirModalActividad('${escapeHtml(d.id)}')">
-        Registrar actividad
+        Registrar atenciones
       </button>
       <button class="btn secundario" onclick="abrirModalListadoActividades('${escapeHtml(d.id)}')">
-        Ver actividades
+        Ver Registro de Atenciones
       </button>
       <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(d.id)}')">
         Solicitar modificación
@@ -566,7 +566,6 @@ function datosFormularioItinerancia(estado) {
     municipio: $("municipio")?.value.trim() || null,
     direccion: $("direccion")?.value.trim() || null,
     horario: dias,
-    dias,
     frecuencia: $("frecuencia")?.value.trim() || null,
     fecha_inicio: $("fechaInicio")?.value || null,
     fecha_fin: $("fechaFin")?.value || null,
@@ -785,7 +784,7 @@ window.abrirModalListadoActividades = function abrirModalListadoActividades(idPu
   itineranciaListadoActividadesActual = itinerancia;
 
   const titulo = $("listadoActividadesTitulo");
-  if (titulo) titulo.textContent = "Actividades registradas";
+  if (titulo) titulo.textContent = "Registro de Atenciones";
 
   const subtitulo = $("listadoActividadesSubtitulo");
   if (subtitulo) {
@@ -839,7 +838,7 @@ window.abrirModalActividad = function abrirModalActividad(idPublicada, idActivid
 
   const titulo = $("actividadModalTitulo");
   if (titulo) {
-    titulo.textContent = actividad ? "Editar actividad" : "Registrar actividad";
+    titulo.textContent = actividad ? "Editar actividad" : "Registrar atenciones";
   }
 
   const info = $("actividadInfo");
@@ -959,7 +958,7 @@ async function guardarActividadItinerancia() {
 
   if (error) {
     console.error(error);
-    mostrarMsgActividad("No se ha podido guardar la actividad: " + error.message, true);
+    mostrarMsgActividad("No se han podido guardar las atenciones: " + error.message, true);
     return;
   }
 
@@ -973,7 +972,7 @@ async function guardarActividadItinerancia() {
     renderListadoActividadesModal();
   }
 
-  mostrarMsg(idActividad ? "Actividad actualizada correctamente." : "Actividad registrada correctamente.");
+  mostrarMsg(idActividad ? "Actividad actualizada correctamente." : "Registro de Atenciones correctamente.");
 }
 
 async function crearPropuestaModificacion(idPublicada) {

@@ -777,3 +777,31 @@ body {
     margin-left: 0;
   }
 }
+
+/* Ajustes textos largos de Registro de Atenciones */
+button,
+.btn,
+.acciones button,
+.acciones-mini button {
+  white-space: normal;
+}
+
+.boton-registro-atenciones,
+button[onclick*="Actividad"],
+button[onclick*="actividad"] {
+  line-height: 1.15;
+}
+
+/* Ajustes textos largos de Registro de Atenciones */
+button,
+.btn,
+.acciones button,
+.acciones-mini button {
+  white-space: normal;
+}
+
+.boton-registro-atenciones,
+button[onclick*="Actividad"],
+button[onclick*="actividad"] {
+  line-height: 1.15;
+}
