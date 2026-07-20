@@ -358,6 +358,25 @@ function estadoEtiquetaClase(estado) {
   return "estado-neutro";
 }
 
+
+function tipoPropuestaLegible(tipo) {
+  const t = String(tipo || "NUEVA").toUpperCase();
+
+  if (t === "MODIFICACION") return "MODIFICACIÓN DE ITINERANCIA EXISTENTE";
+  if (t === "BAJA") return "BAJA DE ITINERANCIA";
+  return "NUEVA ITINERANCIA";
+}
+
+function etiquetaItemUnificado(item) {
+  const estado = estadoLegible(item.estado);
+
+  if (item.tipoListado === "PROPUESTA") {
+    return `${estado} · ${tipoPropuestaLegible(item.data?.tipo)}`;
+  }
+
+  return estado;
+}
+
 function estadoLegible(estado) {
   const e = String(estado || "").toUpperCase();
   if (e === "PENDIENTE_VALIDACION") return "PENDIENTE";
@@ -481,7 +500,7 @@ function renderPanelUnificado() {
     const tecnico = d.tecnico_orienta || d.contacto || "";
     const direccion = d.direccion || "";
     const tel = d.telefono ? ` · Tel. ${escapeHtml(d.telefono)}` : "";
-    const etiqueta = estadoLegible(item.estado);
+    const etiqueta = etiquetaItemUnificado(item);
 
     return `
       <article class="item item-unificado">
@@ -492,7 +511,7 @@ function renderPanelUnificado() {
           </div>
 
           <p class="muted">
-            ${escapeHtml(item.tipoListado)}
+            ${escapeHtml(item.tipoListado === "PROPUESTA" ? tipoPropuestaLegible(d.tipo) : item.tipoListado)}
             ${municipio ? " · " + escapeHtml(municipio) : ""}
             ${dias ? " · " + escapeHtml(dias) : ""}
           </p>
