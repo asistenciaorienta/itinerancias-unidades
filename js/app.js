@@ -1505,33 +1505,38 @@ async function cargarActividadResumenUnidad(lista) {
 function asegurarBloqueResumenAtencionesUnidad() {
   let bloque = document.getElementById("resumenAtencionesUnidad");
 
-  if (bloque) return bloque;
+  if (!bloque) {
+    bloque = document.createElement("section");
+    bloque.id = "resumenAtencionesUnidad";
+    bloque.className = "resumen-atenciones-unidad";
 
-  bloque = document.createElement("section");
-  bloque.id = "resumenAtencionesUnidad";
-  bloque.className = "resumen-atenciones-unidad";
+    bloque.innerHTML = `
+      <div class="resumen-atenciones-unidad-cabecera">
+        <h2>Resumen de Atenciones de mi unidad</h2>
+        <p>Datos calculados únicamente sobre las itinerancias publicadas de esta unidad.</p>
+      </div>
+      <div id="resumenAtencionesUnidadCards" class="resumen-atenciones-unidad-cards"></div>
+    `;
+  }
 
-  bloque.innerHTML = `
-    <div class="resumen-atenciones-unidad-cabecera">
-      <h2>Resumen de Atenciones de mi unidad</h2>
-      <p>Datos calculados únicamente sobre las itinerancias publicadas de esta unidad.</p>
-    </div>
-    <div id="resumenAtencionesUnidadCards" class="resumen-atenciones-unidad-cards"></div>
-  `;
+  const listaVisible = document.getElementById("listaUnificada");
+  const panelVisible = document.querySelector(".panel-unificado");
+  const filtrosUnificados = document.querySelector(".filtros-unificados");
 
-  const main = document.querySelector("main") || document.body;
-  const referencia =
-    document.getElementById("listaPublicadas") ||
-    document.getElementById("listadoPublicadas") ||
-    document.querySelector("[data-lista-publicadas]") ||
-    document.querySelector(".listado") ||
-    document.querySelector(".card") ||
-    main.firstElementChild;
+  /*
+    Importante:
+    No usamos #listaPublicadas como referencia porque existe dentro de un div .oculto.
+    El panel visible actual usa #listaUnificada.
+  */
 
-  if (referencia && referencia.parentElement) {
-    referencia.parentElement.insertBefore(bloque, referencia);
+  if (listaVisible && listaVisible.parentElement) {
+    listaVisible.parentElement.insertBefore(bloque, listaVisible);
+  } else if (filtrosUnificados && filtrosUnificados.parentElement) {
+    filtrosUnificados.insertAdjacentElement("afterend", bloque);
+  } else if (panelVisible) {
+    panelVisible.appendChild(bloque);
   } else {
-    main.prepend(bloque);
+    (document.querySelector("main") || document.body).prepend(bloque);
   }
 
   return bloque;
