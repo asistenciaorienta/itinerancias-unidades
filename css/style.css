@@ -824,3 +824,85 @@ button[onclick*="actividad"] {
   margin-top: .4rem;
   font-size: .9rem;
 }
+
+
+/* === RESUMEN_ATENCIONES_UNIDAD_V1 === */
+.resumen-atenciones-unidad {
+  margin: 1rem 0 1.25rem;
+  padding: 1rem;
+  border: 1px solid #dbe4ef;
+  border-radius: 1rem;
+  background: #f8fafc;
+}
+
+.resumen-atenciones-unidad-cabecera {
+  margin-bottom: .85rem;
+}
+
+.resumen-atenciones-unidad-cabecera h2 {
+  margin: 0 0 .25rem;
+  font-size: 1.15rem;
+}
+
+.resumen-atenciones-unidad-cabecera p {
+  margin: 0;
+  color: #64748b;
+  font-size: .92rem;
+}
+
+.resumen-atenciones-unidad-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: .75rem;
+}
+
+.resumen-atencion-unidad-card {
+  border: 1px solid #d7dee8;
+  border-radius: .9rem;
+  background: #ffffff;
+  padding: .9rem;
+  display: grid;
+  gap: .25rem;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.resumen-atencion-unidad-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .10);
+}
+
+.resumen-atencion-unidad-card strong {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.resumen-atencion-unidad-card span {
+  color: #64748b;
+  font-size: .92rem;
+}
+
+.resumen-atencion-unidad-card.alerta {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.resumen-atencion-unidad-card.aviso {
+  background: #fefce8;
+  border-color: #fde68a;
+}
+
+.resumen-atencion-unidad-card.activo {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .18);
+}
+
+.resumen-atencion-unidad-card.activo strong,
+.resumen-atencion-unidad-card.activo span {
+  color: #1d4ed8;
+}
+/* === FIN_RESUMEN_ATENCIONES_UNIDAD_V1 === */
+

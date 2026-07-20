@@ -1359,3 +1359,299 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
+
+// === RESUMEN_ATENCIONES_UNIDAD_V1 ===
+let filtroAtencionesUnidadResumen = "TODAS";
+let actividadResumenUnidadCache = new Map();
+let publicadasResumenUnidadBase = [];
+let nombreUnidadResumenActual = "";
+let renderItineranciasPublicadasOriginalUnidad = null;
+
+function escResumenUnidad(valor) {
+  return String(valor ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function clienteSupabaseResumenUnidad() {
+  if (typeof supabase !== "undefined" && supabase && typeof supabase.from === "function") return supabase;
+  if (typeof supabaseClient !== "undefined" && supabaseClient && typeof supabaseClient.from === "function") return supabaseClient;
+  if (typeof sb !== "undefined" && sb && typeof sb.from === "function") return sb;
+  if (window.supabaseClient && typeof window.supabaseClient.from === "function") return window.supabaseClient;
+  if (window.sb && typeof window.sb.from === "function") return window.sb;
+  throw new Error("No se ha localizado el cliente de Supabase.");
+}
+
+function idPublicadaResumenUnidad(p) {
+  return p?.id || p?.itinerancia_publicada_id || p?.publicada_id || "";
+}
+
+function frecuenciaResumenUnidad(p) {
+  return String(p?.frecuencia || p?.periodicidad || p?.dias || p?.horario || "").toLowerCase();
+}
+
+function umbralDesactualizadaUnidad(p) {
+  const f = frecuenciaResumenUnidad(p);
+
+  if (f.includes("seman")) return 10;
+  if (f.includes("quinc") || f.includes("altern")) return 20;
+  if (f.includes("mens")) return 35;
+
+  // Puntual / cita / demanda: no se considera desactualizada por días.
+  if (f.includes("puntual") || f.includes("cita") || f.includes("demanda")) return null;
+
+  return 20;
+}
+
+function diasDesdeFechaResumenUnidad(fechaISO) {
+  if (!fechaISO) return null;
+
+  const hoy = new Date();
+  const fecha = new Date(`${fechaISO}T00:00:00`);
+
+  if (Number.isNaN(fecha.getTime())) return null;
+
+  hoy.setHours(0, 0, 0, 0);
+  fecha.setHours(0, 0, 0, 0);
+
+  return Math.floor((hoy - fecha) / 86400000);
+}
+
+function resumenActividadPublicadaUnidad(p) {
+  const id = idPublicadaResumenUnidad(p);
+  return actividadResumenUnidadCache.get(id) || {
+    registros: 0,
+    totalAtenciones: 0,
+    totalMinutos: 0,
+    ultimaFecha: null
+  };
+}
+
+function estadoAtencionesPublicadaUnidad(p) {
+  const r = resumenActividadPublicadaUnidad(p);
+
+  if (!r.registros || !r.totalAtenciones) return "SIN";
+
+  const umbral = umbralDesactualizadaUnidad(p);
+  const dias = diasDesdeFechaResumenUnidad(r.ultimaFecha);
+
+  if (umbral !== null && dias !== null && dias > umbral) return "DESACTUALIZADAS";
+
+  return "RECIENTES";
+}
+
+function formatoTiempoResumenUnidad(minutos) {
+  const total = Number(minutos || 0);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+async function cargarActividadResumenUnidad(lista) {
+  const ids = [...new Set((lista || []).map(idPublicadaResumenUnidad).filter(Boolean))];
+
+  actividadResumenUnidadCache = new Map();
+
+  for (const id of ids) {
+    actividadResumenUnidadCache.set(id, {
+      registros: 0,
+      totalAtenciones: 0,
+      totalMinutos: 0,
+      ultimaFecha: null
+    });
+  }
+
+  if (!ids.length) return;
+
+  const cliente = clienteSupabaseResumenUnidad();
+
+  for (let i = 0; i < ids.length; i += 80) {
+    const lote = ids.slice(i, i + 80);
+
+    const { data, error } = await cliente
+      .from("actividad_itinerancias")
+      .select("itinerancia_publicada_id, fecha_actividad, numero_atenciones, tiempo_total_minutos")
+      .in("itinerancia_publicada_id", lote);
+
+    if (error) throw error;
+
+    for (const r of data || []) {
+      const id = r.itinerancia_publicada_id;
+      const actual = actividadResumenUnidadCache.get(id) || {
+        registros: 0,
+        totalAtenciones: 0,
+        totalMinutos: 0,
+        ultimaFecha: null
+      };
+
+      actual.registros += 1;
+      actual.totalAtenciones += Number(r.numero_atenciones || 0);
+      actual.totalMinutos += Number(r.tiempo_total_minutos || 0);
+
+      const fecha = r.fecha_actividad || null;
+      if (fecha && (!actual.ultimaFecha || String(fecha) > String(actual.ultimaFecha))) {
+        actual.ultimaFecha = fecha;
+      }
+
+      actividadResumenUnidadCache.set(id, actual);
+    }
+  }
+}
+
+function asegurarBloqueResumenAtencionesUnidad() {
+  let bloque = document.getElementById("resumenAtencionesUnidad");
+
+  if (bloque) return bloque;
+
+  bloque = document.createElement("section");
+  bloque.id = "resumenAtencionesUnidad";
+  bloque.className = "resumen-atenciones-unidad";
+
+  bloque.innerHTML = `
+    <div class="resumen-atenciones-unidad-cabecera">
+      <h2>Resumen de Atenciones de mi unidad</h2>
+      <p>Datos calculados únicamente sobre las itinerancias publicadas de esta unidad.</p>
+    </div>
+    <div id="resumenAtencionesUnidadCards" class="resumen-atenciones-unidad-cards"></div>
+  `;
+
+  const main = document.querySelector("main") || document.body;
+  const referencia =
+    document.getElementById("listaPublicadas") ||
+    document.getElementById("listadoPublicadas") ||
+    document.querySelector("[data-lista-publicadas]") ||
+    document.querySelector(".listado") ||
+    document.querySelector(".card") ||
+    main.firstElementChild;
+
+  if (referencia && referencia.parentElement) {
+    referencia.parentElement.insertBefore(bloque, referencia);
+  } else {
+    main.prepend(bloque);
+  }
+
+  return bloque;
+}
+
+function renderResumenAtencionesUnidad(lista) {
+  const bloque = asegurarBloqueResumenAtencionesUnidad();
+  const cont = document.getElementById("resumenAtencionesUnidadCards");
+
+  if (!cont) return;
+
+  const base = Array.isArray(lista) ? lista : [];
+
+  const total = base.length;
+  const sin = base.filter(p => estadoAtencionesPublicadaUnidad(p) === "SIN").length;
+  const recientes = base.filter(p => estadoAtencionesPublicadaUnidad(p) === "RECIENTES").length;
+  const desactualizadas = base.filter(p => estadoAtencionesPublicadaUnidad(p) === "DESACTUALIZADAS").length;
+  const con = Math.max(0, total - sin);
+
+  const totalAtenciones = base.reduce((acc, p) => acc + resumenActividadPublicadaUnidad(p).totalAtenciones, 0);
+  const totalMinutos = base.reduce((acc, p) => acc + resumenActividadPublicadaUnidad(p).totalMinutos, 0);
+
+  const activo = filtroAtencionesUnidadResumen || "TODAS";
+  const cls = valor => activo === valor ? " activo" : "";
+
+  cont.innerHTML = `
+    <button type="button" class="resumen-atencion-unidad-card${cls("TODAS")}" onclick="filtrarResumenAtencionesUnidad('TODAS')">
+      <strong>${escResumenUnidad(total)}</strong>
+      <span>Itinerancias publicadas</span>
+    </button>
+
+    <button type="button" class="resumen-atencion-unidad-card${cls("CON")}" onclick="filtrarResumenAtencionesUnidad('CON')">
+      <strong>${escResumenUnidad(con)}</strong>
+      <span>Con atenciones registradas</span>
+    </button>
+
+    <button type="button" class="resumen-atencion-unidad-card alerta${cls("SIN")}" onclick="filtrarResumenAtencionesUnidad('SIN')">
+      <strong>${escResumenUnidad(sin)}</strong>
+      <span>Sin atenciones</span>
+    </button>
+
+    <button type="button" class="resumen-atencion-unidad-card aviso${cls("DESACTUALIZADAS")}" onclick="filtrarResumenAtencionesUnidad('DESACTUALIZADAS')">
+      <strong>${escResumenUnidad(desactualizadas)}</strong>
+      <span>Desactualizadas</span>
+    </button>
+
+    <button type="button" class="resumen-atencion-unidad-card${cls("TODAS")}" onclick="filtrarResumenAtencionesUnidad('TODAS')">
+      <strong>${escResumenUnidad(totalAtenciones)}</strong>
+      <span>Total atenciones</span>
+    </button>
+
+    <button type="button" class="resumen-atencion-unidad-card${cls("TODAS")}" onclick="filtrarResumenAtencionesUnidad('TODAS')">
+      <strong>${escResumenUnidad(formatoTiempoResumenUnidad(totalMinutos))}</strong>
+      <span>Tiempo total</span>
+    </button>
+  `;
+
+  bloque.classList.remove("oculto");
+}
+
+function filtrarListaAtencionesUnidad(lista) {
+  const filtro = String(filtroAtencionesUnidadResumen || "TODAS").toUpperCase();
+  const base = Array.isArray(lista) ? lista : [];
+
+  if (filtro === "TODAS") return base;
+  if (filtro === "CON") return base.filter(p => estadoAtencionesPublicadaUnidad(p) !== "SIN");
+  if (filtro === "SIN") return base.filter(p => estadoAtencionesPublicadaUnidad(p) === "SIN");
+  if (filtro === "RECIENTES") return base.filter(p => estadoAtencionesPublicadaUnidad(p) === "RECIENTES");
+  if (filtro === "DESACTUALIZADAS") return base.filter(p => estadoAtencionesPublicadaUnidad(p) === "DESACTUALIZADAS");
+
+  return base;
+}
+
+window.filtrarResumenAtencionesUnidad = function filtrarResumenAtencionesUnidad(tipo) {
+  filtroAtencionesUnidadResumen = String(tipo || "TODAS").toUpperCase();
+
+  if (typeof renderItineranciasPublicadas === "function") {
+    renderItineranciasPublicadas(publicadasResumenUnidadBase, nombreUnidadResumenActual);
+  }
+};
+
+function instalarResumenAtencionesUnidad() {
+  if (typeof renderItineranciasPublicadas !== "function") {
+    console.warn("No se ha localizado renderItineranciasPublicadas para instalar el resumen de atenciones.");
+    return;
+  }
+
+  if (renderItineranciasPublicadasOriginalUnidad) return;
+
+  renderItineranciasPublicadasOriginalUnidad = renderItineranciasPublicadas;
+
+  renderItineranciasPublicadas = function renderItineranciasPublicadasConResumen(lista, unidadNombre) {
+    publicadasResumenUnidadBase = Array.isArray(lista) ? lista : [];
+    nombreUnidadResumenActual = unidadNombre || nombreUnidadResumenActual || "";
+
+    const filtrada = filtrarListaAtencionesUnidad(publicadasResumenUnidadBase);
+
+    renderItineranciasPublicadasOriginalUnidad.call(this, filtrada, unidadNombre);
+
+    cargarActividadResumenUnidad(publicadasResumenUnidadBase)
+      .then(() => {
+        renderResumenAtencionesUnidad(publicadasResumenUnidadBase);
+
+        if (filtroAtencionesUnidadResumen !== "TODAS") {
+          const filtradaActualizada = filtrarListaAtencionesUnidad(publicadasResumenUnidadBase);
+          renderItineranciasPublicadasOriginalUnidad.call(this, filtradaActualizada, unidadNombre);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        const bloque = asegurarBloqueResumenAtencionesUnidad();
+        const cont = document.getElementById("resumenAtencionesUnidadCards");
+        if (cont) {
+          cont.innerHTML = `<p class="msg error">No se ha podido cargar el resumen de atenciones de la unidad.</p>`;
+        }
+        bloque.classList.remove("oculto");
+      });
+  };
+}
+
+instalarResumenAtencionesUnidad();
+// === FIN_RESUMEN_ATENCIONES_UNIDAD_V1 ===
+
