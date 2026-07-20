@@ -1655,3 +1655,117 @@ function instalarResumenAtencionesUnidad() {
 instalarResumenAtencionesUnidad();
 // === FIN_RESUMEN_ATENCIONES_UNIDAD_V1 ===
 
+
+// === RESUMEN_ATENCIONES_UNIDAD_PANEL_UNIFICADO_V1 ===
+function vistaResumenUnidadPermiteMostrar() {
+  const valor = String(
+    document.getElementById("filtroEstadoUnificado")?.value ||
+    document.getElementById("filtroEstado")?.value ||
+    ""
+  ).toUpperCase();
+
+  return valor === "PUBLICADAS" || valor === "ACTIVAS" || valor === "TODAS";
+}
+
+function obtenerPublicadasDesdePanelUnificadoUnidad() {
+  const posibles = [
+    window.publicadasActuales,
+    window.itineranciasPublicadasActuales,
+    window.publicadasActualesUnidad,
+    window.itineranciasPublicadas,
+    typeof publicadasActuales !== "undefined" ? publicadasActuales : null,
+    typeof itineranciasPublicadasActuales !== "undefined" ? itineranciasPublicadasActuales : null,
+    typeof publicadasActualesUnidad !== "undefined" ? publicadasActualesUnidad : null,
+    typeof itineranciasPublicadas !== "undefined" ? itineranciasPublicadas : null
+  ];
+
+  for (const lista of posibles) {
+    if (Array.isArray(lista) && lista.length) {
+      return lista.filter(x => {
+        const tipo = String(x.__tipo || x.__tipoRegistro || x.tipo || "").toUpperCase();
+        const estado = String(x.estado || "").toUpperCase();
+
+        return (
+          tipo.includes("ITINERANCIA") ||
+          tipo.includes("PUBLICADA") ||
+          estado === "PUBLICADA" ||
+          x.activa === true ||
+          Object.prototype.hasOwnProperty.call(x, "publicada_at")
+        );
+      });
+    }
+  }
+
+  if (Array.isArray(window.itemsPanelUnificadoActuales)) {
+    return window.itemsPanelUnificadoActuales.filter(x => {
+      const tipo = String(x.__tipo || x.__tipoRegistro || x.tipo || "").toUpperCase();
+      const estado = String(x.estado || "").toUpperCase();
+
+      return (
+        tipo.includes("ITINERANCIA") ||
+        tipo.includes("PUBLICADA") ||
+        estado === "PUBLICADA" ||
+        x.activa === true ||
+        Object.prototype.hasOwnProperty.call(x, "publicada_at")
+      );
+    });
+  }
+
+  return [];
+}
+
+async function mostrarResumenAtencionesUnidadPanelUnificado() {
+  if (!vistaResumenUnidadPermiteMostrar()) {
+    const bloque = document.getElementById("resumenAtencionesUnidad");
+    if (bloque) bloque.classList.add("oculto");
+    return;
+  }
+
+  const lista = obtenerPublicadasDesdePanelUnificadoUnidad();
+
+  if (!lista.length) {
+    const bloque = document.getElementById("resumenAtencionesUnidad");
+    if (bloque) bloque.classList.add("oculto");
+    return;
+  }
+
+  publicadasResumenUnidadBase = lista;
+
+  await cargarActividadResumenUnidad(publicadasResumenUnidadBase);
+  renderResumenAtencionesUnidad(publicadasResumenUnidadBase);
+}
+
+function instalarResumenAtencionesUnidadPanelUnificado() {
+  if (typeof renderPanelUnificado !== "function") {
+    console.warn("No se ha localizado renderPanelUnificado para instalar resumen de atenciones de unidad.");
+    return;
+  }
+
+  if (window.__resumenAtencionesUnidadPanelUnificadoInstalado) return;
+  window.__resumenAtencionesUnidadPanelUnificadoInstalado = true;
+
+  const original = renderPanelUnificado;
+
+  renderPanelUnificado = function renderPanelUnificadoConResumenAtencionesUnidad(...args) {
+    const resultado = original.apply(this, args);
+
+    setTimeout(() => {
+      mostrarResumenAtencionesUnidadPanelUnificado().catch(err => {
+        console.error("Error cargando resumen de atenciones de unidad:", err);
+      });
+    }, 0);
+
+    return resultado;
+  };
+
+  setTimeout(() => {
+    mostrarResumenAtencionesUnidadPanelUnificado().catch(err => {
+      console.error("Error cargando resumen inicial de atenciones de unidad:", err);
+    });
+  }, 250);
+}
+
+instalarResumenAtencionesUnidadPanelUnificado();
+// === FIN_RESUMEN_ATENCIONES_UNIDAD_PANEL_UNIFICADO_V1 ===
+
+
