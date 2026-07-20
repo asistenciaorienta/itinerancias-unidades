@@ -461,6 +461,35 @@ function accionesItemUnificado(item) {
   return "";
 }
 
+
+function itemUnificadoEsPublicadaUnidad(item) {
+  const estado = String(item?.estado || item?.data?.estado || "").toUpperCase();
+  const tipo = String(item?.tipoListado || item?.__tipo || item?.__tipoRegistro || item?.tipo || "").toUpperCase();
+
+  return estado === "PUBLICADA" || tipo.includes("PUBLICADA") || tipo.includes("ITINERANCIA");
+}
+
+function filtrarItemsPanelUnificadoPorAtencionesUnidad(items) {
+  const filtro = String(filtroAtencionesUnidadResumen || "TODAS").toUpperCase();
+
+  if (!vistaResumenUnidadPermiteMostrar()) return items || [];
+  if (!filtro || filtro === "TODAS") return items || [];
+
+  return (items || []).filter(item => {
+    if (!itemUnificadoEsPublicadaUnidad(item)) return true;
+
+    const d = item.data || item;
+    const estadoAtenciones = estadoAtencionesPublicadaUnidad(d);
+
+    if (filtro === "CON") return estadoAtenciones !== "SIN";
+    if (filtro === "SIN") return estadoAtenciones === "SIN";
+    if (filtro === "RECIENTES") return estadoAtenciones === "RECIENTES";
+    if (filtro === "DESACTUALIZADAS") return estadoAtenciones === "DESACTUALIZADAS";
+
+    return true;
+  });
+}
+
 function renderPanelUnificado() {
   const cont = $("listaUnificada");
   if (!cont) {
@@ -486,6 +515,8 @@ function renderPanelUnificado() {
   if (filtroTexto) {
     items = items.filter(item => textoBusquedaItemUnificado(item).includes(filtroTexto));
   }
+
+  items = filtrarItemsPanelUnificadoPorAtencionesUnidad(items);
 
   if (!items.length) {
     cont.innerHTML = `<p class="muted sin-resultados-panel">No hay resultados con los filtros aplicados.</p>`;
@@ -1355,6 +1386,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const filtroEstadoUnificado = $("filtroEstadoUnificado");
   if (filtroEstadoUnificado) {
     filtroEstadoUnificado.addEventListener("change", () => {
+      filtroAtencionesUnidadResumen = "TODAS";
       renderPanelUnificado();
     });
   }
@@ -1613,10 +1645,17 @@ function filtrarListaAtencionesUnidad(lista) {
 window.filtrarResumenAtencionesUnidad = function filtrarResumenAtencionesUnidad(tipo) {
   filtroAtencionesUnidadResumen = String(tipo || "TODAS").toUpperCase();
 
+  renderResumenAtencionesUnidad(publicadasResumenUnidadBase);
+
+  if (typeof renderPanelUnificado === "function") {
+    renderPanelUnificado();
+    return;
+  }
+
   if (typeof renderItineranciasPublicadas === "function") {
     renderItineranciasPublicadas(publicadasResumenUnidadBase, nombreUnidadResumenActual);
   }
-};
+};;
 
 function instalarResumenAtencionesUnidad() {
   if (typeof renderItineranciasPublicadas !== "function") {
@@ -1669,7 +1708,11 @@ function vistaResumenUnidadPermiteMostrar() {
     ""
   ).toUpperCase();
 
-  return valor === "PUBLICADAS" || valor === "ACTIVAS" || valor === "TODAS";
+  /*
+    En panel.html la opción Publicadas tiene value="PUBLICADA".
+    Activas y Todas también deben mostrar el resumen.
+  */
+  return valor === "PUBLICADA" || valor === "PUBLICADAS" || valor === "ACTIVAS" || valor === "TODAS" || valor === "";
 }
 
 function obtenerPublicadasDesdePanelUnificadoUnidad() {
