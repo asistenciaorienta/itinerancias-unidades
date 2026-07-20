@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Nueva propuesta · Itinerancias</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260720-fecha-atenciones">
+  <link rel="stylesheet" href="css/style.css?v=20260720-mod-baja-borradores-busqueda">
 </head>
 <body>
   <header class="topbar">
@@ -28,6 +28,17 @@
           <option value="MODIFICACION">Modificación de itinerancia existente</option>
           <option value="BAJA">Baja de itinerancia</option>
         </select>
+
+        <div id="bloqueItineranciaExistente" class="bloque-itinerancia-existente oculto">
+          <label for="itineranciaPublicadaId">Itinerancia existente</label>
+          <select id="itineranciaPublicadaId">
+            <option value="">Seleccionar itinerancia...</option>
+          </select>
+          <p class="muted ayuda-formulario">
+            Selecciona la itinerancia publicada sobre la que solicitas la modificación o baja.
+          </p>
+        </div>
+
         <label>Municipio</label>
         <input type="text" id="municipio" required>
 
@@ -87,6 +98,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260720-fecha-atenciones"></script>
+  <script src="js/app.js?v=20260720-mod-baja-borradores-busqueda"></script>
 </body>
 </html>

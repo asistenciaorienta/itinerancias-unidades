@@ -805,3 +805,22 @@ button[onclick*="Actividad"],
 button[onclick*="actividad"] {
   line-height: 1.15;
 }
+
+/* Selector de itinerancia existente en modificación/baja */
+.bloque-itinerancia-existente {
+  margin: 1rem 0;
+  padding: .9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: .9rem;
+  background: #f8fafc;
+}
+
+.bloque-itinerancia-existente select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ayuda-formulario {
+  margin-top: .4rem;
+  font-size: .9rem;
+}

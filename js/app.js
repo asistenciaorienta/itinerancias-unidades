@@ -34,8 +34,9 @@ function normalizarTexto(v = "") {
   return String(v || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]/g, "")
     .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -344,6 +345,7 @@ let propuestasActuales = [];
 let itineranciaActividadActual = null;
 let itineranciaListadoActividadesActual = null;
 let actividadesActuales = [];
+let publicadasFormularioActuales = [];
 
 
 function estadoEtiquetaClase(estado) {
@@ -364,7 +366,7 @@ function estadoLegible(estado) {
 
 function textoBusquedaItemUnificado(item) {
   const d = item.data || {};
-  return [
+  return normalizarTexto([
     item.tipoListado,
     item.estado,
     d.titulo,
@@ -380,7 +382,7 @@ function textoBusquedaItemUnificado(item) {
     d.colectivo,
     d.observaciones_publicas,
     d.observaciones_unidad
-  ].join(" ").toLowerCase();
+  ].join(" "));
 }
 
 function construirItemsUnificados() {
@@ -448,7 +450,7 @@ function renderPanelUnificado() {
     return;
   }
 
-  const filtroTexto = String($("filtroPanelUnificado")?.value || "").trim().toLowerCase();
+  const filtroTexto = normalizarTexto($("filtroPanelUnificado")?.value || "");
   const filtroEstado = String($("filtroEstadoUnificado")?.value || "PUBLICADA").trim().toUpperCase();
 
   let items = construirItemsUnificados();
@@ -555,11 +557,116 @@ async function cargarPanel() {
   }
 }
 
+
+function setValorFormulario(id, valor) {
+  const el = $(id);
+  if (el) el.value = valor ?? "";
+}
+
+function getTipoPropuestaFormulario() {
+  return String($("tipo")?.value || "NUEVA").toUpperCase();
+}
+
+function requiereItineranciaExistente() {
+  const tipo = getTipoPropuestaFormulario();
+  return tipo === "MODIFICACION" || tipo === "BAJA";
+}
+
+function textoItineranciaOpcionFormulario(i) {
+  return [
+    i.municipio,
+    i.titulo || i.entidad,
+    i.horario || i.dias,
+    i.direccion
+  ].filter(Boolean).join(" · ");
+}
+
+function rellenarFormularioDesdeItineranciaPublicada(idPublicada, opciones = {}) {
+  const i = publicadasFormularioActuales.find(x => String(x.id) === String(idPublicada));
+  if (!i) return;
+
+  const forzar = opciones.forzar !== false;
+
+  const set = (id, valor) => {
+    const el = $(id);
+    if (!el) return;
+    if (forzar || !String(el.value || "").trim()) {
+      el.value = valor ?? "";
+    }
+  };
+
+  set("municipio", i.municipio || "");
+  set("direccion", i.direccion || "");
+  set("horario", i.horario || i.dias || "");
+  set("frecuencia", i.frecuencia || "");
+  set("fechaInicio", i.fecha_inicio || "");
+  set("fechaFin", i.fecha_fin || "");
+  set("contacto", i.contacto || i.tecnico_orienta || "");
+  set("telefono", i.telefono || "");
+  set("emailContacto", i.email || "");
+  set("observacionesPublicas", i.observaciones_publicas || "");
+}
+
+async function cargarItineranciasFormulario() {
+  if (!$("formNuevaItinerancia")) return [];
+
+  const perfil = await obtenerPerfil();
+  if (!perfil) return [];
+
+  const convocatoria = await obtenerConvocatoriaVigente();
+  const lista = await cargarItineranciasPublicadasEntidad(convocatoria.id, perfil);
+
+  publicadasFormularioActuales = lista || [];
+
+  const select = $("itineranciaPublicadaId");
+  if (select) {
+    const valorActual = select.value || "";
+
+    select.innerHTML = `
+      <option value="">Seleccionar itinerancia...</option>
+      ${publicadasFormularioActuales
+        .slice()
+        .sort((a, b) => textoItineranciaOpcionFormulario(a).localeCompare(textoItineranciaOpcionFormulario(b), "es"))
+        .map(i => `<option value="${escapeHtml(i.id)}">${escapeHtml(textoItineranciaOpcionFormulario(i))}</option>`)
+        .join("")}
+    `;
+
+    if (valorActual && publicadasFormularioActuales.some(i => String(i.id) === String(valorActual))) {
+      select.value = valorActual;
+    }
+  }
+
+  return publicadasFormularioActuales;
+}
+
+async function actualizarTipoPropuestaFormulario(opciones = {}) {
+  const bloque = $("bloqueItineranciaExistente");
+  const select = $("itineranciaPublicadaId");
+  const mostrar = requiereItineranciaExistente();
+
+  if (bloque) bloque.classList.toggle("oculto", !mostrar);
+  if (select) select.required = mostrar;
+
+  if (!mostrar) {
+    if (select) select.value = "";
+    return;
+  }
+
+  if (!publicadasFormularioActuales.length) {
+    await cargarItineranciasFormulario();
+  }
+
+  if (select?.value && opciones.rellenar !== false) {
+    rellenarFormularioDesdeItineranciaPublicada(select.value, { forzar: true });
+  }
+}
+
 function datosFormularioItinerancia(estado) {
   const dias = $("horario")?.value.trim() || null;
+  const tipo = getTipoPropuestaFormulario();
 
-  return {
-    tipo: $("tipo")?.value || "NUEVA",
+  const payload = {
+    tipo,
     estado,
     titulo: "",
     descripcion: null,
@@ -575,6 +682,14 @@ function datosFormularioItinerancia(estado) {
     observaciones_publicas: $("observacionesPublicas")?.value.trim() || null,
     observaciones_unidad: $("observacionesUnidad")?.value.trim() || null
   };
+
+  if (tipo === "MODIFICACION" || tipo === "BAJA") {
+    payload.itinerancia_publicada_id = $("itineranciaPublicadaId")?.value || null;
+  } else {
+    payload.itinerancia_publicada_id = null;
+  }
+
+  return payload;
 }
 
 
@@ -617,6 +732,11 @@ async function guardarPropuesta(estado) {
   }
 
   const payload = datosFormularioItinerancia(estado);
+
+  if (["MODIFICACION", "BAJA"].includes(String(payload.tipo || "").toUpperCase()) && !payload.itinerancia_publicada_id) {
+    mostrarMsg("Debes seleccionar la itinerancia existente sobre la que solicitas la modificación o baja.", true);
+    return;
+  }
 
   if (!payload.municipio) {
     mostrarMsg("El municipio es obligatorio.", true);
@@ -1074,20 +1194,25 @@ async function cargarPropuestaParaEditar() {
     return;
   }
 
-  setValor("tipo", data.tipo || "MODIFICACION");
-  setValor("titulo", data.titulo);
-  setValor("descripcion", data.descripcion);
-  setValor("municipio", data.municipio);
-  setValor("direccion", data.direccion);
-  setValor("horario", data.horario);
-  setValor("frecuencia", data.frecuencia);
-  setValor("fechaInicio", data.fecha_inicio);
-  setValor("fechaFin", data.fecha_fin || $("fechaFin")?.value || "");
-  setValor("contacto", data.contacto);
-  setValor("telefono", data.telefono);
-  setValor("emailContacto", data.email);
-  setValor("observacionesPublicas", data.observaciones_publicas);
-  setValor("observacionesUnidad", data.observaciones_unidad);
+  setValorFormulario("tipo", data.tipo || "NUEVA");
+
+  await actualizarTipoPropuestaFormulario({ rellenar: false });
+
+  if (data.itinerancia_publicada_id) {
+    setValorFormulario("itineranciaPublicadaId", data.itinerancia_publicada_id);
+  }
+
+  setValorFormulario("municipio", data.municipio);
+  setValorFormulario("direccion", data.direccion);
+  setValorFormulario("horario", data.horario);
+  setValorFormulario("frecuencia", data.frecuencia);
+  setValorFormulario("fechaInicio", data.fecha_inicio);
+  setValorFormulario("fechaFin", data.fecha_fin);
+  setValorFormulario("contacto", data.contacto);
+  setValorFormulario("telefono", data.telefono);
+  setValorFormulario("emailContacto", data.email);
+  setValorFormulario("observacionesPublicas", data.observaciones_publicas);
+  setValorFormulario("observacionesUnidad", data.observaciones_unidad);
 
   const h1 = document.querySelector("h1");
   if (h1) h1.textContent = "Editar propuesta de itinerancia";
@@ -1096,9 +1221,34 @@ async function cargarPropuestaParaEditar() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  if ($("formNuevaItinerancia")) {
+    cargarItineranciasFormulario()
+      .then(() => actualizarTipoPropuestaFormulario({ rellenar: false }))
+      .then(() => cargarPropuestaParaEditar())
+      .catch(err => {
+        console.error(err);
+        mostrarMsg("No se han podido cargar las itinerancias existentes.", true);
+      });
+  }
+
+  const tipoPropuesta = $("tipo");
+  if (tipoPropuesta) {
+    tipoPropuesta.addEventListener("change", async () => {
+      await actualizarTipoPropuestaFormulario({ rellenar: true });
+    });
+  }
+
+  const selectItineranciaPublicada = $("itineranciaPublicadaId");
+  if (selectItineranciaPublicada) {
+    selectItineranciaPublicada.addEventListener("change", () => {
+      if (selectItineranciaPublicada.value) {
+        rellenarFormularioDesdeItineranciaPublicada(selectItineranciaPublicada.value, { forzar: true });
+      }
+    });
+  }
+
+
   aplicarFechaFinConvocatoriaPorDefecto();
-  cargarPropuestaParaEditar();
-  
   const formLogin = $("formLogin");
   if (formLogin) {
     formLogin.addEventListener("submit", async e => {
