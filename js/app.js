@@ -1496,6 +1496,8 @@ document.addEventListener("DOMContentLoaded", () => {
 // === RESUMEN_ATENCIONES_UNIDAD_V1 ===
 let filtroAtencionesUnidadResumen = "TODAS";
 let actividadResumenUnidadCache = new Map();
+let actividadResumenUnidadListaCargadaKey = "";
+let repintandoPanelPorActividadUnidad = false;
 let publicadasResumenUnidadBase = [];
 let nombreUnidadResumenActual = "";
 let renderItineranciasPublicadasOriginalUnidad = null;
@@ -1564,6 +1566,18 @@ function resumenActividadPublicadaUnidad(p) {
 }
 
 function estadoAtencionesPublicadaUnidad(p) {
+  const id = idPublicadaResumenUnidad(p);
+  const ids = [...new Set((publicadasResumenUnidadBase || []).map(idPublicadaResumenUnidad).filter(Boolean))];
+  const key = ids.slice().sort().join("|");
+
+  /*
+    Mientras la actividad no está cargada, no clasificamos como SIN.
+    Así evitamos pintar en naranja itinerancias que sí tienen atenciones.
+  */
+  if (key && actividadResumenUnidadListaCargadaKey !== key) {
+    return "CARGANDO";
+  }
+
   const r = resumenActividadPublicadaUnidad(p);
 
   if (!r.registros || !r.totalAtenciones) return "SIN";
@@ -1585,8 +1599,10 @@ function formatoTiempoResumenUnidad(minutos) {
 
 async function cargarActividadResumenUnidad(lista) {
   const ids = [...new Set((lista || []).map(idPublicadaResumenUnidad).filter(Boolean))];
+  const key = ids.slice().sort().join("|");
 
   actividadResumenUnidadCache = new Map();
+  actividadResumenUnidadListaCargadaKey = "";
 
   for (const id of ids) {
     actividadResumenUnidadCache.set(id, {
@@ -1597,7 +1613,10 @@ async function cargarActividadResumenUnidad(lista) {
     });
   }
 
-  if (!ids.length) return;
+  if (!ids.length) {
+    actividadResumenUnidadListaCargadaKey = key;
+    return;
+  }
 
   const cliente = clienteSupabaseResumenUnidad();
 
@@ -1632,6 +1651,8 @@ async function cargarActividadResumenUnidad(lista) {
       actividadResumenUnidadCache.set(id, actual);
     }
   }
+
+  actividadResumenUnidadListaCargadaKey = key;
 }
 
 function asegurarBloqueResumenAtencionesUnidad() {
@@ -1868,6 +1889,13 @@ async function mostrarResumenAtencionesUnidadPanelUnificado() {
   if (!vistaResumenUnidadPermiteMostrar()) {
     const bloque = document.getElementById("resumenAtencionesUnidad");
     if (bloque) bloque.classList.add("oculto");
+
+    const aviso = document.getElementById("avisoSuperiorAtencionesUnidad");
+    if (aviso) {
+      aviso.classList.add("oculto");
+      aviso.innerHTML = "";
+    }
+
     return;
   }
 
@@ -1876,13 +1904,40 @@ async function mostrarResumenAtencionesUnidadPanelUnificado() {
   if (!lista.length) {
     const bloque = document.getElementById("resumenAtencionesUnidad");
     if (bloque) bloque.classList.add("oculto");
+
+    const aviso = document.getElementById("avisoSuperiorAtencionesUnidad");
+    if (aviso) {
+      aviso.classList.add("oculto");
+      aviso.innerHTML = "";
+    }
+
     return;
   }
 
   publicadasResumenUnidadBase = lista;
 
   await cargarActividadResumenUnidad(publicadasResumenUnidadBase);
+
   renderResumenAtencionesUnidad(publicadasResumenUnidadBase);
+
+  if (typeof renderAvisoSuperiorAtencionesUnidad === "function") {
+    renderAvisoSuperiorAtencionesUnidad();
+  }
+
+  /*
+    El primer render del panel se hace antes de cargar las atenciones.
+    Repintamos una sola vez cuando la actividad ya está cargada para que:
+    - aparezca el aviso superior al entrar;
+    - no marque en naranja itinerancias que sí tienen atenciones.
+  */
+  if (!repintandoPanelPorActividadUnidad && typeof renderPanelUnificado === "function") {
+    repintandoPanelPorActividadUnidad = true;
+    try {
+      renderPanelUnificado();
+    } finally {
+      repintandoPanelPorActividadUnidad = false;
+    }
+  }
 }
 
 function instalarResumenAtencionesUnidadPanelUnificado() {
@@ -1899,11 +1954,13 @@ function instalarResumenAtencionesUnidadPanelUnificado() {
   renderPanelUnificado = function renderPanelUnificadoConResumenAtencionesUnidad(...args) {
     const resultado = original.apply(this, args);
 
-    setTimeout(() => {
-      mostrarResumenAtencionesUnidadPanelUnificado().catch(err => {
-        console.error("Error cargando resumen de atenciones de unidad:", err);
-      });
-    }, 0);
+    if (!repintandoPanelPorActividadUnidad) {
+      setTimeout(() => {
+        mostrarResumenAtencionesUnidadPanelUnificado().catch(err => {
+          console.error("Error cargando resumen de atenciones de unidad:", err);
+        });
+      }, 0);
+    }
 
     return resultado;
   };
