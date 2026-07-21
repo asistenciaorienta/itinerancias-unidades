@@ -959,3 +959,19 @@ button[onclick*="actividad"] {
   background: #dcfce7;
   color: #14532d;
 }
+
+/* Botón eliminar borrador en edición de propuesta */
+#btnEliminarBorrador {
+  margin-left: .5rem;
+}
+
+#btnEliminarBorrador.peligro {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+#btnEliminarBorrador.peligro:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}

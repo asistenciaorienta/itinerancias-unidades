@@ -306,7 +306,7 @@ function renderItineranciasPublicadas(lista, unidadNombre) {
           Ver Registro de Atenciones
         </button>
         <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(i.id)}')">
-          Solicitar modificación
+          Solicitar modificación de Itinerancia
         </button>
       </div>
     </article>
@@ -445,7 +445,7 @@ function accionesItemUnificado(item) {
         Ver Registro de Atenciones
       </button>
       <button class="btn secundario" onclick="crearPropuestaModificacion('${escapeHtml(d.id)}')">
-        Solicitar modificación
+        Solicitar modificación de Itinerancia
       </button>
     `;
   }
@@ -1975,4 +1975,125 @@ function instalarResumenAtencionesUnidadPanelUnificado() {
 instalarResumenAtencionesUnidadPanelUnificado();
 // === FIN_RESUMEN_ATENCIONES_UNIDAD_PANEL_UNIFICADO_V1 ===
 
+
+// === ELIMINAR_BORRADOR_PROPUESTA_V1 ===
+let propuestaBorradorEditableActual = null;
+
+function clienteSupabaseEliminarBorrador() {
+  if (typeof supabase !== "undefined" && supabase && typeof supabase.from === "function") return supabase;
+  if (typeof supabaseClient !== "undefined" && supabaseClient && typeof supabaseClient.from === "function") return supabaseClient;
+  if (typeof sb !== "undefined" && sb && typeof sb.from === "function") return sb;
+  if (window.supabaseClient && typeof window.supabaseClient.from === "function") return window.supabaseClient;
+  if (window.sb && typeof window.sb.from === "function") return window.sb;
+  throw new Error("No se ha localizado el cliente de Supabase.");
+}
+
+function idPropuestaDesdeUrlEliminarBorrador() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("id") || params.get("propuesta") || params.get("propuesta_id") || "";
+}
+
+function setVisibleEliminarBorrador(visible) {
+  const btn = document.getElementById("btnEliminarBorrador");
+  if (!btn) return;
+  btn.classList.toggle("oculto", !visible);
+}
+
+async function prepararBotonEliminarBorrador() {
+  const btn = document.getElementById("btnEliminarBorrador");
+  if (!btn) return;
+
+  setVisibleEliminarBorrador(false);
+
+  const id = idPropuestaDesdeUrlEliminarBorrador();
+  if (!id) return;
+
+  const cliente = clienteSupabaseEliminarBorrador();
+
+  const { data, error } = await cliente
+    .from("itinerancias_propuestas")
+    .select("id, titulo, entidad, municipio, estado")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) {
+    console.warn("No se ha podido comprobar si la propuesta es borrador:", error);
+    return;
+  }
+
+  propuestaBorradorEditableActual = data;
+
+  if (String(data.estado || "").toUpperCase() === "BORRADOR") {
+    setVisibleEliminarBorrador(true);
+  }
+}
+
+async function eliminarBorradorPropuestaActual() {
+  const btn = document.getElementById("btnEliminarBorrador");
+  const id = propuestaBorradorEditableActual?.id || idPropuestaDesdeUrlEliminarBorrador();
+
+  if (!id) {
+    alert("No se ha podido localizar el borrador.");
+    return;
+  }
+
+  const titulo = propuestaBorradorEditableActual?.titulo || propuestaBorradorEditableActual?.entidad || "este borrador";
+
+  const ok1 = confirm(`¿Quieres eliminar el borrador?\n\n${titulo}`);
+  if (!ok1) return;
+
+  const ok2 = confirm("Segunda confirmación: ¿estás seguro/a de que quieres eliminar este borrador?\n\nDesaparecerá del listado normal de trabajo.");
+  if (!ok2) return;
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Eliminando...";
+    }
+
+    const cliente = clienteSupabaseEliminarBorrador();
+
+    /*
+      No hacemos borrado físico.
+      Lo pasamos a ARCHIVADA para conservar trazabilidad y evitar pérdidas accidentales.
+    */
+    const { error } = await cliente
+      .from("itinerancias_propuestas")
+      .update({
+        estado: "ARCHIVADA",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .eq("estado", "BORRADOR");
+
+    if (error) throw error;
+
+    alert("Borrador eliminado correctamente.");
+
+    window.location.href = "panel.html";
+  } catch (err) {
+    console.error(err);
+    alert("No se ha podido eliminar el borrador: " + (err.message || err));
+
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Eliminar borrador";
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("btnEliminarBorrador");
+
+  if (btn) {
+    btn.addEventListener("click", () => {
+      eliminarBorradorPropuestaActual();
+    });
+
+    prepararBotonEliminarBorrador().catch(err => {
+      console.error("Error preparando botón Eliminar borrador:", err);
+    });
+  }
+});
+// === FIN_ELIMINAR_BORRADOR_PROPUESTA_V1 ===
 
