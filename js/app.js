@@ -2223,3 +2223,155 @@ function instalarBotonEliminarBorradorPanelUnidad() {
 instalarBotonEliminarBorradorPanelUnidad();
 // === FIN_ELIMINAR_BORRADOR_PANEL_UNIDAD_V1 ===
 
+
+// === SOLICITAR_ACCESO_UNIDAD_SELECT_V1 ===
+function clienteSupabaseUnidadSelectAcceso() {
+  if (typeof supabase !== "undefined" && supabase && typeof supabase.from === "function") return supabase;
+  if (typeof supabaseClient !== "undefined" && supabaseClient && typeof supabaseClient.from === "function") return supabaseClient;
+  if (typeof sb !== "undefined" && sb && typeof sb.from === "function") return sb;
+  if (window.supabaseClient && typeof window.supabaseClient.from === "function") return window.supabaseClient;
+  if (window.sb && typeof window.sb.from === "function") return window.sb;
+  throw new Error("No se ha localizado el cliente de Supabase.");
+}
+
+function normalizarTextoUnidadSelectAcceso(valor) {
+  return String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function localizarCampoUnidadEntidadAcceso() {
+  const candidatos = [
+    document.getElementById("unidad"),
+    document.getElementById("unidadEntidad"),
+    document.getElementById("unidad_entidad"),
+    document.getElementById("entidad"),
+    document.querySelector('[name="unidad"]'),
+    document.querySelector('[name="unidadEntidad"]'),
+    document.querySelector('[name="unidad_entidad"]'),
+    document.querySelector('[name="entidad"]')
+  ].filter(Boolean);
+
+  for (const el of candidatos) {
+    if (el && ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)) return el;
+  }
+
+  const labels = [...document.querySelectorAll("label")];
+
+  for (const label of labels) {
+    const texto = normalizarTextoUnidadSelectAcceso(label.textContent);
+    if (texto.includes("unidad") && texto.includes("entidad")) {
+      const dentro = label.querySelector("input, textarea, select");
+      if (dentro) return dentro;
+
+      if (label.getAttribute("for")) {
+        const porFor = document.getElementById(label.getAttribute("for"));
+        if (porFor) return porFor;
+      }
+    }
+  }
+
+  return null;
+}
+
+function textoUnidadOpcionAcceso(u) {
+  const nombre = u.nombre || u.unidad || u.entidad || "";
+  const municipio = u.municipio || u.poblacion || "";
+  const codigo = u.codigo || "";
+
+  return [nombre, municipio, codigo]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+async function cargarUnidadesSelectAcceso() {
+  if (!location.pathname.includes("solicitar-acceso")) return;
+
+  const campoOriginal = localizarCampoUnidadEntidadAcceso();
+  if (!campoOriginal) {
+    console.warn("No se ha localizado el campo Unidad/Entidad en solicitar-acceso.");
+    return;
+  }
+
+  if (document.getElementById("unidadEntidadSelectAcceso")) return;
+
+  const cliente = clienteSupabaseUnidadSelectAcceso();
+
+  const { data, error } = await cliente
+    .from("unidades")
+    .select("*")
+    .order("nombre", { ascending: true });
+
+  if (error) {
+    console.error("No se han podido cargar las unidades:", error);
+    return;
+  }
+
+  const unidades = (data || [])
+    .filter(u => u.activo !== false)
+    .sort((a, b) => textoUnidadOpcionAcceso(a).localeCompare(textoUnidadOpcionAcceso(b), "es"));
+
+  const select = document.createElement("select");
+  select.id = "unidadEntidadSelectAcceso";
+  select.className = "unidad-entidad-select-acceso";
+  select.required = campoOriginal.required !== false;
+
+  select.innerHTML = `
+    <option value="">Selecciona la unidad/entidad...</option>
+    ${unidades.map(u => {
+      const texto = textoUnidadOpcionAcceso(u);
+      const nombre = u.nombre || u.unidad || u.entidad || texto;
+      return `
+        <option value="${escapeHtml(nombre)}" data-unidad-id="${escapeHtml(u.id || "")}">
+          ${escapeHtml(texto)}
+        </option>
+      `;
+    }).join("")}
+  `;
+
+  const ayuda = document.createElement("p");
+  ayuda.className = "muted ayuda-unidad-entidad-select";
+  ayuda.textContent = "Selecciona la unidad para la que solicitas acceso.";
+
+  campoOriginal.classList.add("oculto");
+  campoOriginal.required = false;
+  campoOriginal.insertAdjacentElement("afterend", select);
+  select.insertAdjacentElement("afterend", ayuda);
+
+  const hiddenUnidadId = document.createElement("input");
+  hiddenUnidadId.type = "hidden";
+  hiddenUnidadId.id = "unidadIdSeleccionadaAcceso";
+  hiddenUnidadId.name = "unidad_id";
+  campoOriginal.insertAdjacentElement("afterend", hiddenUnidadId);
+
+  select.addEventListener("change", () => {
+    const opt = select.selectedOptions[0];
+    campoOriginal.value = select.value || "";
+    hiddenUnidadId.value = opt?.dataset?.unidadId || "";
+    campoOriginal.dispatchEvent(new Event("input", { bubbles: true }));
+    campoOriginal.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  if (campoOriginal.value) {
+    const valorActual = normalizarTextoUnidadSelectAcceso(campoOriginal.value);
+    const encontrada = [...select.options].find(opt =>
+      normalizarTextoUnidadSelectAcceso(opt.value) === valorActual ||
+      normalizarTextoUnidadSelectAcceso(opt.textContent).includes(valorActual)
+    );
+
+    if (encontrada) {
+      select.value = encontrada.value;
+      hiddenUnidadId.value = encontrada.dataset.unidadId || "";
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  cargarUnidadesSelectAcceso().catch(err => {
+    console.error("Error cargando desplegable Unidad/Entidad:", err);
+  });
+});
+// === FIN_SOLICITAR_ACCESO_UNIDAD_SELECT_V1 ===
+

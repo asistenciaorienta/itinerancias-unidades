@@ -1013,3 +1013,13 @@ button[onclick*="actividad"] {
   margin-top: 1rem;
   margin-bottom: 1rem;
 }
+
+/* Solicitar acceso: Unidad/Entidad como desplegable */
+.unidad-entidad-select-acceso {
+  width: 100%;
+}
+
+.ayuda-unidad-entidad-select {
+  margin-top: .25rem;
+  font-size: .9rem;
+}
