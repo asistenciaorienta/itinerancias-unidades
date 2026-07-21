@@ -2281,9 +2281,12 @@ function localizarCampoUnidadEntidadAcceso() {
 function textoUnidadOpcionAcceso(u) {
   const nombre = u.nombre || u.unidad || u.entidad || "";
   const municipio = u.municipio || u.poblacion || "";
-  const codigo = u.codigo || "";
 
-  return [nombre, municipio, codigo]
+  /*
+    Texto visible del desplegable:
+    no mostramos código tipo AO_UNIT00 para que sea más claro para las unidades.
+  */
+  return [nombre, municipio]
     .filter(Boolean)
     .join(" · ");
 }
