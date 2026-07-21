@@ -2244,10 +2244,12 @@ function normalizarTextoUnidadSelectAcceso(valor) {
 
 function localizarCampoUnidadEntidadAcceso() {
   const candidatos = [
+    document.getElementById("solUnidad"),
     document.getElementById("unidad"),
     document.getElementById("unidadEntidad"),
     document.getElementById("unidad_entidad"),
     document.getElementById("entidad"),
+    document.querySelector('[name="solUnidad"]'),
     document.querySelector('[name="unidad"]'),
     document.querySelector('[name="unidadEntidad"]'),
     document.querySelector('[name="unidad_entidad"]'),
