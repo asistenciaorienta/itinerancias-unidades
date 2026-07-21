@@ -2097,3 +2097,123 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 // === FIN_ELIMINAR_BORRADOR_PROPUESTA_V1 ===
 
+
+// === ELIMINAR_BORRADOR_PANEL_UNIDAD_V1 ===
+function tipoPropuestaEsNuevaParaEliminarBorradorUnidad(item) {
+  const d = item?.data || item || {};
+  const tipo = String(d.tipo || d.tipo_propuesta || d.tipoPropuesta || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+
+  /*
+    Solo permitimos eliminar desde el panel los borradores de NUEVA ITINERANCIA.
+    Las propuestas de MODIFICACION o BAJA se dejan fuera para evitar confusiones.
+  */
+  return !tipo || tipo === "NUEVA" || tipo === "ALTA" || tipo.includes("NUEVA");
+}
+
+function itemEsBorradorNuevaItineranciaUnidad(item) {
+  const d = item?.data || item || {};
+  const estado = String(item?.estado || d.estado || "").toUpperCase();
+
+  return estado === "BORRADOR" && tipoPropuestaEsNuevaParaEliminarBorradorUnidad(item);
+}
+
+function clienteSupabaseEliminarBorradorPanelUnidad() {
+  if (typeof supabase !== "undefined" && supabase && typeof supabase.from === "function") return supabase;
+  if (typeof supabaseClient !== "undefined" && supabaseClient && typeof supabaseClient.from === "function") return supabaseClient;
+  if (typeof sb !== "undefined" && sb && typeof sb.from === "function") return sb;
+  if (window.supabaseClient && typeof window.supabaseClient.from === "function") return window.supabaseClient;
+  if (window.sb && typeof window.sb.from === "function") return window.sb;
+  throw new Error("No se ha localizado el cliente de Supabase.");
+}
+
+function botonEliminarBorradorPanelUnidad(item) {
+  if (!itemEsBorradorNuevaItineranciaUnidad(item)) return "";
+
+  const d = item?.data || item || {};
+  const id = d.id || item.id || "";
+
+  if (!id) return "";
+
+  return `
+    <button type="button"
+            class="peligro btn-eliminar-borrador-panel"
+            onclick="eliminarBorradorPanelUnidad('${escapeHtml(id)}')">
+      Eliminar borrador
+    </button>
+  `;
+}
+
+window.eliminarBorradorPanelUnidad = async function eliminarBorradorPanelUnidad(id) {
+  const propuesta = (propuestasActuales || []).find(p => String(p.id) === String(id));
+  const titulo = propuesta?.titulo || propuesta?.entidad || propuesta?.municipio || "este borrador";
+
+  const ok1 = confirm(`¿Quieres eliminar el borrador?\n\n${titulo}`);
+  if (!ok1) return;
+
+  const ok2 = confirm("Segunda confirmación: ¿estás seguro/a de que quieres eliminar este borrador?\n\nDesaparecerá del listado normal de trabajo.");
+  if (!ok2) return;
+
+  try {
+    const cliente = clienteSupabaseEliminarBorradorPanelUnidad();
+
+    const { error } = await cliente
+      .from("itinerancias_propuestas")
+      .update({
+        estado: "ARCHIVADA",
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .eq("estado", "BORRADOR");
+
+    if (error) throw error;
+
+    propuestasActuales = (propuestasActuales || []).filter(p => String(p.id) !== String(id));
+
+    if (typeof mostrarMsg === "function") {
+      mostrarMsg("Borrador eliminado correctamente.");
+    } else {
+      alert("Borrador eliminado correctamente.");
+    }
+
+    if (typeof renderPanelUnificado === "function") {
+      renderPanelUnificado();
+    } else {
+      window.location.reload();
+    }
+  } catch (err) {
+    console.error(err);
+    alert("No se ha podido eliminar el borrador: " + (err.message || err));
+  }
+};
+
+function instalarBotonEliminarBorradorPanelUnidad() {
+  if (typeof accionesItemUnificado !== "function") {
+    console.warn("No se ha localizado accionesItemUnificado para añadir Eliminar borrador.");
+    return;
+  }
+
+  if (accionesItemUnificado.__eliminarBorradorPanelUnidadWrapped) return;
+
+  const original = accionesItemUnificado;
+
+  const envuelta = function accionesItemUnificadoConEliminarBorrador(item) {
+    const htmlOriginal = original.call(this, item) || "";
+    const htmlEliminar = botonEliminarBorradorPanelUnidad(item);
+
+    if (!htmlEliminar) return htmlOriginal;
+    if (htmlOriginal.includes("btn-eliminar-borrador-panel")) return htmlOriginal;
+
+    return htmlOriginal + htmlEliminar;
+  };
+
+  envuelta.__eliminarBorradorPanelUnidadWrapped = true;
+  accionesItemUnificado = envuelta;
+}
+
+instalarBotonEliminarBorradorPanelUnidad();
+// === FIN_ELIMINAR_BORRADOR_PANEL_UNIDAD_V1 ===
+

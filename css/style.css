@@ -975,3 +975,15 @@ button[onclick*="actividad"] {
   background: #b91c1c;
   border-color: #b91c1c;
 }
+
+/* Eliminar borrador desde panel de unidad */
+.btn-eliminar-borrador-panel {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+
+.btn-eliminar-borrador-panel:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
