@@ -987,3 +987,23 @@ button[onclick*="actividad"] {
   background: #b91c1c;
   border-color: #b91c1c;
 }
+
+/* Botones de cabecera del panel de unidad */
+.acciones-header-panel {
+  display: flex;
+  gap: .6rem;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.btn-listado-publico-header {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .acciones-header-panel {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}

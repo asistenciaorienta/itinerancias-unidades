@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Itinerancias de la Unidad</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260720-eliminar-borrador-panel-unidad">
+  <link rel="stylesheet" href="css/style.css?v=20260720-listado-publico-cabecera">
 </head>
 <body>
   <main class="container panel-page">
@@ -13,7 +13,10 @@
         <h1>Itinerancias de la Unidad</h1>
         <p id="usuarioInfo" class="muted"></p>
       </div>
-      <button type="button" id="btnLogout" class="secundario" class="secundario btn-logout-panel">Cerrar sesión</button>
+      <div class="acciones-header-panel">
+        <a class="btn secundario btn-listado-publico-header" href="https://asistenciaorienta.github.io/itinerancias_provincia_granada/" target="_blank" rel="noopener">Ver listado público</a>
+        <button type="button" id="btnLogout" class="secundario btn-logout-panel">Cerrar sesión</button>
+      </div>
     </header>
 
     <p id="msg" class="msg"></p>
@@ -24,7 +27,6 @@
           <h2>Mis itinerancias y propuestas</h2>
           <p class="muted">Consulta tus itinerancias publicadas y las propuestas enviadas a Dirección Provincial.</p>
         </div>
-        <a class="btn secundario" href="https://asistenciaorienta.github.io/itinerancias_provincia_granada/" target="_blank" rel="noopener">Ver listado público</a>
         <a class="btn" href="nueva-itinerancia.html">Nueva propuesta</a>
       </div>
 
@@ -166,7 +168,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260720-eliminar-borrador-panel-unidad"></script>
+  <script src="js/app.js?v=20260720-listado-publico-cabecera"></script>
 
 </body>
 </html>
