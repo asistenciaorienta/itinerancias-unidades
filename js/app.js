@@ -548,11 +548,20 @@ function asegurarAvisoSuperiorAtencionesUnidad() {
   aviso.id = "avisoSuperiorAtencionesUnidad";
   aviso.className = "aviso-superior-atenciones-unidad oculto";
 
+  /*
+    El aviso debe quedar también en zona superior:
+    debajo del título principal y antes del resumen/panel.
+  */
+  const resumen = document.getElementById("resumenAtencionesUnidad");
   const panel = document.querySelector(".panel-unificado");
-  const referencia = document.getElementById("resumenAtencionesUnidad") || panel;
+  const msg = document.getElementById("msg");
 
-  if (referencia && referencia.parentElement) {
-    referencia.parentElement.insertBefore(aviso, referencia);
+  if (resumen && resumen.parentElement) {
+    resumen.parentElement.insertBefore(aviso, resumen);
+  } else if (panel && panel.parentElement) {
+    panel.parentElement.insertBefore(aviso, panel);
+  } else if (msg && msg.parentElement) {
+    msg.insertAdjacentElement("afterend", aviso);
   } else {
     (document.querySelector("main") || document.body).prepend(aviso);
   }
@@ -1661,7 +1670,7 @@ function asegurarBloqueResumenAtencionesUnidad() {
   if (!bloque) {
     bloque = document.createElement("section");
     bloque.id = "resumenAtencionesUnidad";
-    bloque.className = "resumen-atenciones-unidad";
+    bloque.className = "resumen-atenciones-unidad resumen-atenciones-unidad-superior";
 
     bloque.innerHTML = `
       <div class="resumen-atenciones-unidad-cabecera">
@@ -1672,24 +1681,21 @@ function asegurarBloqueResumenAtencionesUnidad() {
     `;
   }
 
-  const listaVisible = document.getElementById("listaUnificada");
-  const panelVisible = document.querySelector(".panel-unificado");
-  const filtrosUnificados = document.querySelector(".filtros-unificados");
-
   /*
-    Importante:
-    No usamos #listaPublicadas como referencia porque existe dentro de un div .oculto.
-    El panel visible actual usa #listaUnificada.
+    Ubicación correcta:
+    debajo del título principal/cabecera del panel, NO dentro de
+    "Mis itinerancias y propuestas".
   */
+  const main = document.querySelector("main.container") || document.querySelector("main") || document.body;
+  const panelUnificado = document.querySelector(".panel-unificado");
+  const msg = document.getElementById("msg");
 
-  if (listaVisible && listaVisible.parentElement) {
-    listaVisible.parentElement.insertBefore(bloque, listaVisible);
-  } else if (filtrosUnificados && filtrosUnificados.parentElement) {
-    filtrosUnificados.insertAdjacentElement("afterend", bloque);
-  } else if (panelVisible) {
-    panelVisible.appendChild(bloque);
+  if (panelUnificado && panelUnificado.parentElement) {
+    panelUnificado.parentElement.insertBefore(bloque, panelUnificado);
+  } else if (msg && msg.parentElement) {
+    msg.insertAdjacentElement("afterend", bloque);
   } else {
-    (document.querySelector("main") || document.body).prepend(bloque);
+    main.prepend(bloque);
   }
 
   return bloque;

@@ -1007,3 +1007,9 @@ button[onclick*="actividad"] {
     width: 100%;
   }
 }
+
+/* Resumen de atenciones colocado bajo la cabecera principal */
+.resumen-atenciones-unidad-superior {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
