@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Solicitar acceso · Itinerancias</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260721-select-unidad-sin-codigo">
+  <link rel="stylesheet" href="css/style.css?v=20260721-solicitud-unidad-id-convocatoria">
 </head>
 <body>
   <main class="contenedor">
@@ -26,6 +26,8 @@
 
         <label>Unidad / entidad</label>
         <input type="text" id="solUnidad" required>
+        <input type="hidden" id="solUnidadId">
+        <input type="hidden" id="solConvocatoriaId">
 
         <label>Cargo o función</label>
         <input type="text" id="solCargo">
@@ -46,6 +48,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260721-select-unidad-sin-codigo"></script>
+  <script src="js/app.js?v=20260721-solicitud-unidad-id-convocatoria"></script>
 </body>
 </html>

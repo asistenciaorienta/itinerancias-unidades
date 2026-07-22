@@ -1023,3 +1023,15 @@ button[onclick*="actividad"] {
   margin-top: .25rem;
   font-size: .9rem;
 }
+
+/* Solicitar acceso: selector de unidad */
+#solUnidadSelect {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: .65rem;
+  background: #ffffff;
+  padding: .55rem .7rem;
+  font: inherit;
+  margin-bottom: .85rem;
+}

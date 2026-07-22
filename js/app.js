@@ -128,13 +128,93 @@ async function logout() {
   window.location.href = "login.html";
 }
 
-async function solicitarAcceso(payload) {
+
+
+// === SOLICITUD_ACCESO_UNIDAD_ID_CONVOCATORIA_V1 ===
+let unidadesSolicitudAcceso = [];
+let convocatoriaSolicitudAcceso = null;
+
+function textoUnidadSolicitudAcceso(u) {
+  return [u.nombre, u.municipio].filter(Boolean).join(" · ");
+}
+
+function unidadSeleccionadaSolicitudAcceso() {
+  const unidadId = $("solUnidadId")?.value || "";
+  if (!unidadId) return null;
+  return unidadesSolicitudAcceso.find(u => String(u.id) === String(unidadId)) || null;
+}
+
+async function prepararSolicitudAccesoUnidadConvocatoria() {
+  const inputUnidad = $("solUnidad");
+  const form = $("formSolicitudAcceso");
+
+  if (!inputUnidad || !form) return;
+
   try {
-    const convocatoria = await obtenerConvocatoriaVigente();
-    payload.convocatoria_id = convocatoria.id;
+    convocatoriaSolicitudAcceso = await obtenerConvocatoriaVigente();
+
+    const hiddenConv = $("solConvocatoriaId");
+    if (hiddenConv) hiddenConv.value = convocatoriaSolicitudAcceso.id;
+
+    const { data, error } = await supabaseClient
+      .from("unidades")
+      .select("id,nombre,municipio,convocatoria_id,activa")
+      .eq("activa", true)
+      .eq("convocatoria_id", convocatoriaSolicitudAcceso.id)
+      .order("nombre", { ascending: true });
+
+    if (error) throw error;
+
+    unidadesSolicitudAcceso = data || [];
+
+    const select = document.createElement("select");
+    select.id = "solUnidadSelect";
+    select.required = true;
+    select.innerHTML = `
+      <option value="">Selecciona tu unidad...</option>
+      ${unidadesSolicitudAcceso.map(u => `
+        <option value="${escapeHtml(u.id)}">${escapeHtml(textoUnidadSolicitudAcceso(u))}</option>
+      `).join("")}
+    `;
+
+    select.addEventListener("change", () => {
+      const unidad = unidadesSolicitudAcceso.find(u => String(u.id) === String(select.value));
+
+      const hiddenUnidadId = $("solUnidadId");
+      if (hiddenUnidadId) hiddenUnidadId.value = unidad?.id || "";
+
+      inputUnidad.value = unidad ? textoUnidadSolicitudAcceso(unidad) : "";
+    });
+
+    inputUnidad.type = "hidden";
+    inputUnidad.required = false;
+    inputUnidad.parentNode.insertBefore(select, inputUnidad.nextSibling);
+
   } catch (err) {
     console.error(err);
-    mostrarMsg("No se ha podido detectar la convocatoria vigente. Inténtalo más tarde.", true);
+    mostrarMsg("No se han podido cargar las unidades disponibles para solicitar acceso.", true);
+  }
+}
+// === FIN_SOLICITUD_ACCESO_UNIDAD_ID_CONVOCATORIA_V1 ===
+
+async function solicitarAcceso(payload) {
+  try {
+    const convocatoria = convocatoriaSolicitudAcceso || await obtenerConvocatoriaVigente();
+    payload.convocatoria_id = convocatoria.id;
+
+    const unidad = unidadSeleccionadaSolicitudAcceso();
+
+    if (!unidad?.id) {
+      mostrarMsg("Debes seleccionar una unidad del listado.", true);
+      return;
+    }
+
+    payload.unidad_id = unidad.id;
+    payload.unidad_nombre = textoUnidadSolicitudAcceso(unidad);
+
+  } catch (err) {
+    console.error(err);
+    mostrarMsg("No se ha podido detectar la convocatoria o unidad vigente. Inténtalo más tarde.", true);
     return;
   }
 
@@ -151,6 +231,12 @@ async function solicitarAcceso(payload) {
   mostrarMsg("Solicitud enviada correctamente. Dirección Provincial la revisará.");
   const form = $("formSolicitudAcceso");
   if (form) form.reset();
+
+  const hiddenUnidadId = $("solUnidadId");
+  if (hiddenUnidadId) hiddenUnidadId.value = "";
+
+  const select = $("solUnidadSelect");
+  if (select) select.value = "";
 }
 
 async function cargarItineranciasPublicadasEntidad(convocatoriaId, perfil) {
@@ -1380,6 +1466,7 @@ async function cargarPropuestaParaEditar() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  prepararSolicitudAccesoUnidadConvocatoria();
   if ($("formNuevaItinerancia")) {
     cargarItineranciasFormulario()
       .then(() => actualizarTipoPropuestaFormulario({ rellenar: false }))
@@ -1425,6 +1512,7 @@ document.addEventListener("DOMContentLoaded", () => {
         nombre: $("solNombre").value.trim(),
         email: $("solEmail").value.trim(),
         telefono: $("solTelefono").value.trim() || null,
+        unidad_id: $("solUnidadId")?.value || null,
         unidad_nombre: $("solUnidad").value.trim(),
         cargo: $("solCargo").value.trim() || null,
         observaciones: $("solObservaciones").value.trim() || null,
