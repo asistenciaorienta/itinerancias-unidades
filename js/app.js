@@ -2391,7 +2391,10 @@ async function enviarRecuperacionClaveItinerancias(email, { silencioso = false }
 
   if (error) {
     console.error(error);
-    mostrarMsg("No se ha podido enviar el correo de recuperación: " + error.message, true);
+    const detalle = error?.message && error.message !== "{}"
+      ? error.message
+      : "revisa la configuración de correos de Supabase Auth: SMTP, plantilla Reset Password y URLs permitidas.";
+    mostrarMsg("No se ha podido enviar el correo de recuperación: " + detalle, true);
     return false;
   }
 
@@ -2609,7 +2612,10 @@ async function enviarRecuperacionClaveItineranciasV2(email, { silencioso = false
 
   if (error) {
     console.error(error);
-    mostrarMsg("No se ha podido enviar el correo de recuperación: " + error.message, true);
+    const detalle = error?.message && error.message !== "{}"
+      ? error.message
+      : "revisa la configuración de correos de Supabase Auth: SMTP, plantilla Reset Password y URLs permitidas.";
+    mostrarMsg("No se ha podido enviar el correo de recuperación: " + detalle, true);
     return false;
   }
 
