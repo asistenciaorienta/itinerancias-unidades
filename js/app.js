@@ -85,24 +85,41 @@ async function obtenerConvocatoriaVigente() {
 }
 
 async function obtenerPerfil() {
-  const session = await exigirLogin();
-  if (!session) return null;
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+
+  if (authError || !authData?.user) {
+    window.location.href = "login.html";
+    return null;
+  }
+
+  const user = authData.user;
 
   const { data, error } = await supabaseClient
     .from("usuarios_perfiles")
     .select("id,email,nombre,rol,unidad_id,activo,unidades(nombre,origen_interno_id)")
-    .eq("id", session.user.id)
-    .single();
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if (error) {
-    console.error(error);
+  if (error || !data) {
     mostrarMsg("No se ha podido cargar tu perfil. Contacta con Dirección Provincial.", true);
     return null;
   }
 
   if (!data.activo) {
     mostrarMsg("Tu usuario no está activo. Contacta con Dirección Provincial.", true);
-    await supabaseClient.auth.signOut();
+
+    try {
+      await supabaseClient.auth.signOut();
+    } catch (err) {
+      console.error("No se ha podido cerrar la sesión del usuario inactivo", err);
+    }
+
+    perfilActual = null;
+
+    setTimeout(() => {
+      window.location.href = "login.html?motivo=usuario-inactivo";
+    }, 800);
+
     return null;
   }
 
@@ -2320,3 +2337,17 @@ instalarBotonEliminarBorradorPanelUnidad();
 
 
 
+
+
+// === LOGIN_MOTIVO_USUARIO_INACTIVO_V1 ===
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    if (params.get("motivo") === "usuario-inactivo") {
+      mostrarMsg("Tu usuario no está activo. Contacta con Dirección Provincial.", true);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+});
+// === FIN_LOGIN_MOTIVO_USUARIO_INACTIVO_V1 ===
