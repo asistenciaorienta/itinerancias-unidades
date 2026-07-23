@@ -1082,3 +1082,14 @@ body:has(#bloqueNuevaClave:not(.oculto)) h1::after {
   margin-top: .75rem;
 }
 /* === FIN_RESET_CLAVE_SOLO_USUARIOS_ACTIVOS_V2 === */
+
+/* === CAMBIO_CLAVE_MANUAL_ADMIN_V1 === */
+.bloque-desactivado-recuperacion {
+  display: none !important;
+}
+
+#btnRecordarClave.btn-enlace,
+.btn-enlace {
+  font-weight: 700;
+}
+/* === FIN_CAMBIO_CLAVE_MANUAL_ADMIN_V1 === */

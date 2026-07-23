@@ -2788,3 +2788,68 @@ async function solicitudAccesoPermitidaPorEstadoEmailV2(payload) {
   });
 })();
 // === FIN_RESET_CLAVE_SOLO_USUARIOS_ACTIVOS_V2 ===
+
+// === CAMBIO_CLAVE_MANUAL_ADMIN_V1 ===
+async function solicitarCambioClaveManualItinerancias(email) {
+  const correo = String(email || "").trim().toLowerCase();
+
+  if (!correo) {
+    mostrarMsg("Introduce tu correo electrónico para solicitar el cambio de clave.", true);
+    return false;
+  }
+
+  const { data, error } = await supabaseClient.rpc("solicitar_cambio_clave_itinerancias", {
+    p_email: correo
+  });
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se ha podido registrar la solicitud de cambio de clave. Contacta con Dirección Provincial.", true);
+    return false;
+  }
+
+  const resultado = Array.isArray(data) ? data[0] : data;
+  const ok = resultado?.ok === true;
+  const mensaje = resultado?.mensaje || "Solicitud procesada.";
+
+  mostrarMsg(mensaje, !ok);
+
+  return ok;
+}
+
+async function pedirCambioClaveManualItinerancias() {
+  const emailInput = $("loginEmail");
+  const sugerido = emailInput?.value?.trim() || "";
+
+  const correo = prompt(
+    "Introduce el correo electrónico con el que accedes al panel de itinerancias:",
+    sugerido
+  );
+
+  if (!correo) return;
+
+  await solicitarCambioClaveManualItinerancias(correo);
+}
+
+(function instalarCambioClaveManualAdminV1() {
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = $("btnRecordarClave");
+
+    if (btn) {
+      btn.textContent = "Solicitar cambio de clave";
+      btn.title = "Solicita a Dirección Provincial una clave temporal.";
+
+      const nuevo = btn.cloneNode(true);
+      btn.parentNode.replaceChild(nuevo, btn);
+
+      nuevo.addEventListener("click", pedirCambioClaveManualItinerancias);
+    }
+
+    const bloqueNuevaClave = $("bloqueNuevaClave");
+    if (bloqueNuevaClave) {
+      bloqueNuevaClave.classList.add("oculto");
+      bloqueNuevaClave.classList.add("bloque-desactivado-recuperacion");
+    }
+  });
+})();
+// === FIN_CAMBIO_CLAVE_MANUAL_ADMIN_V1 ===

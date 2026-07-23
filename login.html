@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Acceso · Itinerancias</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260723-mensaje-error-reset-smtp">
+  <link rel="stylesheet" href="css/style.css?v=20260723-cambio-clave-manual-v1">
 </head>
 <body>
   <main class="contenedor">
@@ -25,10 +25,10 @@
       <p id="msg" class="msg"></p>
 
       <p class="enlace-secundario">
-        <button type="button" id="btnRecordarClave" class="btn-enlace">He olvidado mi clave / cambiar clave</button>
+        <button type="button" id="btnRecordarClave" class="btn-enlace">Solicitar cambio de clave</button>
       </p>
 
-      <section id="bloqueNuevaClave" class="bloque-nueva-clave oculto">
+      <section id="bloqueNuevaClave" class="bloque-nueva-clave oculto bloque-desactivado-recuperacion">
         <h2>Cambiar clave de acceso</h2>
         <p class="muted">Introduce dos veces la nueva clave. Este formulario solo está disponible para usuarios activos.</p>
 
@@ -51,6 +51,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260723-mensaje-error-reset-smtp"></script>
+  <script src="js/app.js?v=20260723-cambio-clave-manual-v1"></script>
 </body>
 </html>
