@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Acceso · Itinerancias</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260720-etiqueta-tipo-propuesta">
+  <link rel="stylesheet" href="css/style.css?v=20260723-recuperar-clave-y-control-solicitud">
 </head>
 <body>
   <main class="contenedor">
@@ -25,6 +25,25 @@
       <p id="msg" class="msg"></p>
 
       <p class="enlace-secundario">
+        <button type="button" id="btnRecordarClave" class="btn-enlace">He olvidado mi clave / cambiar clave</button>
+      </p>
+
+      <section id="bloqueNuevaClave" class="bloque-nueva-clave oculto">
+        <h2>Nueva clave</h2>
+        <p class="muted">Introduce tu nueva clave para actualizar el acceso.</p>
+
+        <form id="formNuevaClave">
+          <label>Nueva clave</label>
+          <input type="password" id="nuevaClave" required minlength="8">
+
+          <label>Repetir nueva clave</label>
+          <input type="password" id="nuevaClave2" required minlength="8">
+
+          <button type="submit">Guardar nueva clave</button>
+        </form>
+      </section>
+
+      <p class="enlace-secundario">
         ¿No tienes usuario? <a href="solicitar-acceso.html">Solicitar acceso</a>
       </p>
     </section>
@@ -32,6 +51,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260720-etiqueta-tipo-propuesta"></script>
+  <script src="js/app.js?v=20260723-recuperar-clave-y-control-solicitud"></script>
 </body>
 </html>

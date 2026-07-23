@@ -1035,3 +1035,32 @@ button[onclick*="actividad"] {
   font: inherit;
   margin-bottom: .85rem;
 }
+
+/* === RECUPERAR_CLAVE_Y_CONTROL_SOLICITUD_V1 === */
+.btn-enlace {
+  border: 0;
+  background: transparent;
+  color: #0f766e;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.btn-enlace:hover {
+  color: #115e59;
+}
+
+.bloque-nueva-clave {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: .85rem;
+  background: #f8fafc;
+}
+
+.bloque-nueva-clave h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+/* === FIN_RECUPERAR_CLAVE_Y_CONTROL_SOLICITUD_V1 === */

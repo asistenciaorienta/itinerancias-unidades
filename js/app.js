@@ -2351,3 +2351,186 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 // === FIN_LOGIN_MOTIVO_USUARIO_INACTIVO_V1 ===
+
+// === RECUPERAR_CLAVE_Y_CONTROL_SOLICITUD_V1 ===
+function urlRedireccionRecuperarClave() {
+  return `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, "")}login.html?modo=cambiar-clave`;
+}
+
+async function estadoAccesoPorEmailItinerancias(email) {
+  const correo = String(email || "").trim().toLowerCase();
+
+  if (!correo) {
+    return { estado: "EMAIL_VACIO" };
+  }
+
+  const { data, error } = await supabaseClient.rpc("estado_acceso_itinerancias_por_email", {
+    p_email: correo
+  });
+
+  if (error) {
+    console.error("No se ha podido comprobar el estado del acceso", error);
+    return { estado: "DESCONOCIDO", error };
+  }
+
+  if (Array.isArray(data) && data[0]) return data[0];
+  return data || { estado: "NO_EXISTE", email: correo };
+}
+
+async function enviarRecuperacionClaveItinerancias(email, { silencioso = false } = {}) {
+  const correo = String(email || "").trim().toLowerCase();
+
+  if (!correo) {
+    mostrarMsg("Introduce tu correo electrónico para recuperar o cambiar la clave.", true);
+    return false;
+  }
+
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(correo, {
+    redirectTo: urlRedireccionRecuperarClave()
+  });
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se ha podido enviar el correo de recuperación: " + error.message, true);
+    return false;
+  }
+
+  if (!silencioso) {
+    mostrarMsg("Te hemos enviado un correo para cambiar la clave. Revisa también la carpeta de spam.");
+  }
+
+  return true;
+}
+
+async function pedirCorreoYEnviarRecuperacionClave() {
+  const emailInput = $("loginEmail") || $("solEmail");
+  const sugerido = emailInput?.value?.trim() || "";
+
+  const correo = prompt("Introduce el correo electrónico con el que accedes al panel:", sugerido);
+  if (!correo) return;
+
+  const estado = await estadoAccesoPorEmailItinerancias(correo);
+
+  if (estado.estado === "INACTIVO") {
+    mostrarMsg("Tu usuario existe, pero no está activo. Debes solicitar acceso de nuevo.", true);
+    return;
+  }
+
+  if (estado.estado === "NO_EXISTE") {
+    mostrarMsg("No consta un usuario activo con ese correo. Solicita acceso primero.", true);
+    return;
+  }
+
+  await enviarRecuperacionClaveItinerancias(correo);
+}
+
+function activarFormularioCambioClaveSiProcede() {
+  const params = new URLSearchParams(window.location.search || "");
+  const modo = params.get("modo");
+  const bloque = $("bloqueNuevaClave");
+
+  if (modo === "cambiar-clave" && bloque) {
+    bloque.classList.remove("oculto");
+    mostrarMsg("Introduce la nueva clave para completar el cambio.");
+  }
+}
+
+async function guardarNuevaClaveItinerancias() {
+  const c1 = $("nuevaClave")?.value || "";
+  const c2 = $("nuevaClave2")?.value || "";
+
+  if (c1.length < 8) {
+    mostrarMsg("La clave debe tener al menos 8 caracteres.", true);
+    return;
+  }
+
+  if (c1 !== c2) {
+    mostrarMsg("Las claves no coinciden.", true);
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.updateUser({
+    password: c1
+  });
+
+  if (error) {
+    console.error(error);
+    mostrarMsg("No se ha podido cambiar la clave: " + error.message, true);
+    return;
+  }
+
+  mostrarMsg("Clave actualizada correctamente. Ya puedes acceder al panel.");
+
+  setTimeout(() => {
+    window.location.href = "login.html";
+  }, 1200);
+}
+
+async function solicitudAccesoPermitidaPorEstadoEmail(payload) {
+  const correo = String(payload?.email || "").trim().toLowerCase();
+
+  if (!correo) {
+    mostrarMsg("Debes indicar un correo electrónico.", true);
+    return false;
+  }
+
+  const estado = await estadoAccesoPorEmailItinerancias(correo);
+  const e = String(estado.estado || "").toUpperCase();
+
+  if (e === "ACTIVO") {
+    const enviar = confirm(
+      "Este correo ya tiene un usuario activo en el panel de itinerancias.\n\n" +
+      "No se va a crear una nueva solicitud.\n\n" +
+      "¿Quieres que enviemos un correo para recuperar o cambiar la clave?"
+    );
+
+    if (enviar) {
+      await enviarRecuperacionClaveItinerancias(correo, { silencioso: true });
+      mostrarMsg("El usuario ya está activo. Se ha enviado un correo para recuperar o cambiar la clave.");
+    } else {
+      mostrarMsg("El usuario ya está activo. Debe acceder con su clave o usar recuperación de clave.");
+    }
+
+    return false;
+  }
+
+  if (e === "INACTIVO") {
+    return true;
+  }
+
+  if (e === "NO_EXISTE" || e === "AUTH_SIN_PERFIL" || e === "DESCONOCIDO") {
+    return true;
+  }
+
+  return true;
+}
+
+(function instalarRecuperacionClaveYControlSolicitud() {
+  const solicitarAccesoOriginal = window.solicitarAcceso || (typeof solicitarAcceso === "function" ? solicitarAcceso : null);
+
+  if (solicitarAccesoOriginal && !window.__solicitarAccesoControlEmailInstalado) {
+    window.__solicitarAccesoControlEmailInstalado = true;
+
+    window.solicitarAcceso = async function solicitarAccesoControlEmailWrapper(payload) {
+      const permitido = await solicitudAccesoPermitidaPorEstadoEmail(payload);
+      if (!permitido) return;
+      return await solicitarAccesoOriginal(payload);
+    };
+
+    try {
+      solicitarAcceso = window.solicitarAcceso;
+    } catch {}
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    activarFormularioCambioClaveSiProcede();
+
+    $("btnRecordarClave")?.addEventListener("click", pedirCorreoYEnviarRecuperacionClave);
+
+    $("formNuevaClave")?.addEventListener("submit", async e => {
+      e.preventDefault();
+      await guardarNuevaClaveItinerancias();
+    });
+  });
+})();
+// === FIN_RECUPERAR_CLAVE_Y_CONTROL_SOLICITUD_V1 ===
