@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Acceso · Itinerancias</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260723-recuperar-clave-y-control-solicitud">
+  <link rel="stylesheet" href="css/style.css?v=20260723-reset-clave-activos-v2">
 </head>
 <body>
   <main class="contenedor">
@@ -12,7 +12,7 @@
       <h1>Acceso de unidades</h1>
       <p class="muted">Introduce tu correo y clave para acceder al panel.</p>
 
-      <form id="formLogin">
+      <form id="formLogin" class="form-login-principal">
         <label>Correo electrónico</label>
         <input type="email" id="loginEmail" required>
 
@@ -29,8 +29,8 @@
       </p>
 
       <section id="bloqueNuevaClave" class="bloque-nueva-clave oculto">
-        <h2>Nueva clave</h2>
-        <p class="muted">Introduce tu nueva clave para actualizar el acceso.</p>
+        <h2>Cambiar clave de acceso</h2>
+        <p class="muted">Introduce dos veces la nueva clave. Este formulario solo está disponible para usuarios activos.</p>
 
         <form id="formNuevaClave">
           <label>Nueva clave</label>
@@ -51,6 +51,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260723-recuperar-clave-y-control-solicitud"></script>
+  <script src="js/app.js?v=20260723-reset-clave-activos-v2"></script>
 </body>
 </html>

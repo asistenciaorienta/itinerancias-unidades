@@ -1064,3 +1064,21 @@ button[onclick*="actividad"] {
   font-size: 1.1rem;
 }
 /* === FIN_RECUPERAR_CLAVE_Y_CONTROL_SOLICITUD_V1 === */
+
+/* === RESET_CLAVE_SOLO_USUARIOS_ACTIVOS_V2 === */
+body:has(#bloqueNuevaClave:not(.oculto)) .card > .muted:first-of-type {
+  display: none;
+}
+
+body:has(#bloqueNuevaClave:not(.oculto)) h1::after {
+  content: " · Cambio de clave";
+}
+
+.bloque-nueva-clave {
+  border-left: 5px solid #0f766e;
+}
+
+.bloque-nueva-clave button {
+  margin-top: .75rem;
+}
+/* === FIN_RESET_CLAVE_SOLO_USUARIOS_ACTIVOS_V2 === */
