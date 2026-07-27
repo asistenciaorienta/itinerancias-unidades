@@ -3001,24 +3001,17 @@ async function guardarCambioClaveObligatorio() {
     return;
   }
 
-  const perfil = perfilCambioClaveObligatorio || perfilActual;
+  const { data: rpcData, error: perfilError } = await supabaseClient
+    .rpc("completar_cambio_clave_itinerancias");
 
-  if (!perfil?.id) {
-    msgCambioClaveObligatorio("Clave actualizada, pero no se ha podido actualizar el perfil. Vuelve a iniciar sesión.", true);
-    return;
-  }
+  const resultadoRpc = Array.isArray(rpcData) ? rpcData[0] : rpcData;
 
-  const { error: perfilError } = await supabaseClient
-    .from("usuarios_perfiles")
-    .update({
-      debe_cambiar_clave: false,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", perfil.id);
-
-  if (perfilError) {
-    console.error(perfilError);
-    msgCambioClaveObligatorio("Clave actualizada, pero no se ha podido completar el perfil. Contacta con Dirección Provincial.", true);
+  if (perfilError || resultadoRpc?.ok !== true) {
+    console.error(perfilError || resultadoRpc);
+    msgCambioClaveObligatorio(
+      "La clave se ha actualizado, pero no se ha podido completar el cambio en el perfil. Contacta con Dirección Provincial.",
+      true
+    );
     return;
   }
 
