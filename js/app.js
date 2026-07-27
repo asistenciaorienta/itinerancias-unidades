@@ -96,7 +96,7 @@ async function obtenerPerfil() {
 
   const { data, error } = await supabaseClient
     .from("usuarios_perfiles")
-    .select("id,email,nombre,rol,unidad_id,activo,unidades(nombre,origen_interno_id)")
+    .select("id,email,nombre,rol,unidad_id,activo,debe_cambiar_clave,unidades(nombre,origen_interno_id)")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -792,6 +792,18 @@ async function cargarPanel() {
   if (!perfil) return;
 
   perfilActual = perfil;
+
+  if (perfil.debe_cambiar_clave === true) {
+    const info = $("usuarioInfo");
+    if (info) {
+      const unidadNombre = perfil.unidades?.nombre || "Unidad sin asignar";
+      info.textContent = `${perfil.nombre || perfil.email} · ${unidadNombre} · Cambio de clave pendiente`;
+    }
+
+    mostrarMsg("Debes cambiar la clave temporal antes de continuar.", true);
+    abrirCambioClaveObligatorio(perfil);
+    return;
+  }
 
   try {
     convocatoriaActual = await obtenerConvocatoriaVigente();
@@ -2918,3 +2930,139 @@ async function pedirCambioClaveManualItinerancias() {
   });
 })();
 // === FIN_CAMBIO_CLAVE_MANUAL_ADMIN_V1 ===
+
+// === CAMBIO_CLAVE_OBLIGATORIO_V1 ===
+let cambioClaveObligatorioPendiente = false;
+let perfilCambioClaveObligatorio = null;
+
+function msgCambioClaveObligatorio(texto, error = false) {
+  const el = $("msgCambioClaveObligatorio");
+  if (!el) return;
+  el.textContent = texto || "";
+  el.className = error ? "msg error" : "msg ok";
+}
+
+function abrirCambioClaveObligatorio(perfil) {
+  cambioClaveObligatorioPendiente = true;
+  perfilCambioClaveObligatorio = perfil || perfilActual || null;
+
+  const modal = $("modalCambioClaveObligatorio");
+  if (!modal) {
+    mostrarMsg("Debes cambiar la clave temporal antes de continuar.", true);
+    return;
+  }
+
+  try {
+    modal.showModal();
+  } catch {
+    modal.setAttribute("open", "open");
+  }
+
+  msgCambioClaveObligatorio("");
+
+  const c1 = $("claveObligatoria1");
+  if (c1) c1.focus();
+}
+
+function cerrarCambioClaveObligatorio() {
+  const modal = $("modalCambioClaveObligatorio");
+  if (!modal) return;
+
+  try {
+    modal.close();
+  } catch {
+    modal.removeAttribute("open");
+  }
+}
+
+async function guardarCambioClaveObligatorio() {
+  const c1 = $("claveObligatoria1")?.value || "";
+  const c2 = $("claveObligatoria2")?.value || "";
+
+  if (c1.length < 8) {
+    msgCambioClaveObligatorio("La clave debe tener al menos 8 caracteres.", true);
+    return;
+  }
+
+  if (c1 !== c2) {
+    msgCambioClaveObligatorio("Las claves no coinciden.", true);
+    return;
+  }
+
+  msgCambioClaveObligatorio("Actualizando clave...");
+
+  const { error: authError } = await supabaseClient.auth.updateUser({
+    password: c1
+  });
+
+  if (authError) {
+    console.error(authError);
+    msgCambioClaveObligatorio("No se ha podido actualizar la clave: " + authError.message, true);
+    return;
+  }
+
+  const perfil = perfilCambioClaveObligatorio || perfilActual;
+
+  if (!perfil?.id) {
+    msgCambioClaveObligatorio("Clave actualizada, pero no se ha podido actualizar el perfil. Vuelve a iniciar sesión.", true);
+    return;
+  }
+
+  const { error: perfilError } = await supabaseClient
+    .from("usuarios_perfiles")
+    .update({
+      debe_cambiar_clave: false,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", perfil.id);
+
+  if (perfilError) {
+    console.error(perfilError);
+    msgCambioClaveObligatorio("Clave actualizada, pero no se ha podido completar el perfil. Contacta con Dirección Provincial.", true);
+    return;
+  }
+
+  cambioClaveObligatorioPendiente = false;
+
+  if (perfilActual) {
+    perfilActual.debe_cambiar_clave = false;
+  }
+
+  msgCambioClaveObligatorio("Clave cambiada correctamente. Cargando panel...");
+
+  setTimeout(async () => {
+    cerrarCambioClaveObligatorio();
+
+    try {
+      await cargarPanel();
+    } catch (err) {
+      console.error(err);
+      mostrarMsg("Clave cambiada. Recarga la página para continuar.", true);
+    }
+  }, 900);
+}
+
+function instalarCambioClaveObligatorio() {
+  const form = $("formCambioClaveObligatorio");
+  if (!form || form.dataset.instaladoCambioClave === "1") return;
+
+  form.dataset.instaladoCambioClave = "1";
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    await guardarCambioClaveObligatorio();
+  });
+
+  const modal = $("modalCambioClaveObligatorio");
+  if (modal) {
+    modal.addEventListener("cancel", e => {
+      if (cambioClaveObligatorioPendiente) {
+        e.preventDefault();
+        msgCambioClaveObligatorio("Debes cambiar la clave temporal para continuar.", true);
+      }
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
+// === FIN_CAMBIO_CLAVE_OBLIGATORIO_V1 ===

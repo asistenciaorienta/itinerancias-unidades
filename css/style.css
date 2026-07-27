@@ -1104,3 +1104,26 @@ body:has(#bloqueNuevaClave:not(.oculto)) h1::after {
   font-weight: 700;
 }
 /* === FIN_CAMBIO_CLAVE_MANUAL_ADMIN_V1 === */
+
+/* === CAMBIO_CLAVE_OBLIGATORIO_V1 === */
+.modal-cambio-clave-obligatorio::backdrop {
+  background: rgba(15, 23, 42, .65);
+}
+
+.cambio-clave-card {
+  max-width: 520px;
+  border-top: 6px solid #0f766e;
+}
+
+.cambio-clave-card h2 {
+  margin-top: 0;
+}
+
+.cambio-clave-card button {
+  margin-top: .75rem;
+}
+
+#modalCambioClaveObligatorio[open] {
+  pointer-events: auto;
+}
+/* === FIN_CAMBIO_CLAVE_OBLIGATORIO_V1 === */

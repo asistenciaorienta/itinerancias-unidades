@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Itinerancias de la Unidad</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="css/style.css?v=20260721-resumen-debajo-titulo">
+  <link rel="stylesheet" href="css/style.css?v=20260723-cambio-clave-obligatorio-v1">
 </head>
 <body>
   <main class="container panel-page">
@@ -168,7 +168,27 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260721-resumen-debajo-titulo"></script>
+  <script src="js/app.js?v=20260723-cambio-clave-obligatorio-v1"></script>
+
+
+  <dialog id="modalCambioClaveObligatorio" class="modal-cambio-clave-obligatorio">
+    <form method="dialog" class="modal-card cambio-clave-card" id="formCambioClaveObligatorio">
+      <h2>Cambio de clave obligatorio</h2>
+      <p class="muted">
+        Estás accediendo con una clave temporal. Por seguridad, debes crear una nueva clave antes de continuar.
+      </p>
+
+      <label>Nueva clave</label>
+      <input type="password" id="claveObligatoria1" required minlength="8" autocomplete="new-password">
+
+      <label>Repetir nueva clave</label>
+      <input type="password" id="claveObligatoria2" required minlength="8" autocomplete="new-password">
+
+      <button type="submit">Guardar nueva clave y continuar</button>
+
+      <p id="msgCambioClaveObligatorio" class="msg"></p>
+    </form>
+  </dialog>
 
 </body>
 </html>
