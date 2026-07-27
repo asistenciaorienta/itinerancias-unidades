@@ -3023,11 +3023,16 @@ async function guardarCambioClaveObligatorio() {
 
   msgCambioClaveObligatorio("Clave cambiada correctamente. Cargando panel...");
 
+  // Limpiamos también el aviso general que se mostró antes de abrir el modal.
+  mostrarMsg("");
+
   setTimeout(async () => {
     cerrarCambioClaveObligatorio();
 
     try {
+      mostrarMsg("");
       await cargarPanel();
+      mostrarMsg("");
     } catch (err) {
       console.error(err);
       mostrarMsg("Clave cambiada. Recarga la página para continuar.", true);
