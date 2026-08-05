@@ -152,7 +152,17 @@ let unidadesSolicitudAcceso = [];
 let convocatoriaSolicitudAcceso = null;
 
 function textoUnidadSolicitudAcceso(u) {
-  return [u.nombre, u.municipio].filter(Boolean).join(" · ");
+  const direccion = String(
+    u?.direccion || ""
+  ).trim();
+
+  return [
+    u?.nombre,
+    u?.municipio,
+    direccion
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function unidadSeleccionadaSolicitudAcceso() {
@@ -182,7 +192,7 @@ async function prepararSolicitudAccesoUnidadConvocatoria() {
 
     const { data, error } = await supabaseClient
       .from("unidades")
-      .select("id,nombre,municipio,convocatoria_id,activa")
+      .select("id,nombre,municipio,direccion,convocatoria_id,activa")
       .eq("activa", true)
       .eq("convocatoria_id", convocatoriaSolicitudAcceso.id)
       .order("nombre", { ascending: true });
