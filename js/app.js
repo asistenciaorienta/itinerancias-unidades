@@ -66,19 +66,19 @@ async function exigirLogin() {
   return session;
 }
 
+// === SOLICITUDES_OCA_2026_V1_6_PUBLIC ===
 async function obtenerConvocatoriaVigente() {
   const { data, error } = await supabaseClient
     .from("convocatorias_orienta")
     .select("id,nombre,periodo,fecha_inicio,fecha_fin,estado,visible_web")
+    .eq("id", "OCA_2026")
     .eq("visible_web", true)
-    .eq("estado", "VIGENTE")
-    .limit(1)
     .maybeSingle();
 
   if (error) throw error;
 
   if (!data) {
-    throw new Error("No hay ninguna convocatoria vigente disponible.");
+    throw new Error("No está disponible la convocatoria OCA_2026.");
   }
 
   return data;
