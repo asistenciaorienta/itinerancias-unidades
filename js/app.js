@@ -251,6 +251,71 @@ async function obtenerPerfil() {
       ...(r.unidades || {})
     }));
 
+
+  // === UNIDAD_ACTIVA_SESION_V2 ===
+  const unidadPrincipalIdCompat =
+    asignacionPrincipal?.unidad_id ||
+    data.unidad_id ||
+    null;
+
+  data.unidad_principal_id =
+    unidadPrincipalIdCompat;
+
+  const claveUnidadActiva =
+    `itinerancias_unidad_activa_${data.id}`;
+
+  const unidadActivaGuardada =
+    sessionStorage.getItem(
+      claveUnidadActiva
+    );
+
+  const unidadesActivas =
+    Array.isArray(data.unidades_asignadas)
+      ? data.unidades_asignadas.filter(
+          u => u.activo !== false
+        )
+      : [];
+
+  const unidadActiva =
+    unidadesActivas.find(
+      u =>
+        unidadActivaGuardada &&
+        String(u.unidad_id) ===
+        String(unidadActivaGuardada)
+    ) ||
+    unidadesActivas.find(
+      u => u.principal === true
+    ) ||
+    unidadesActivas.find(
+      u =>
+        String(u.unidad_id) ===
+        String(unidadPrincipalIdCompat)
+    ) ||
+    unidadesActivas[0] ||
+    null;
+
+  if (unidadActiva) {
+    data.unidad_id =
+      unidadActiva.unidad_id;
+
+    data.unidad_activa_id =
+      unidadActiva.unidad_id;
+
+    /*
+      Compatibilidad:
+      el resto de la aplicación ya utiliza perfil.unidades
+      para nombre y origen_interno_id.
+    */
+    data.unidades =
+      unidadActiva;
+
+    sessionStorage.setItem(
+      claveUnidadActiva,
+      unidadActiva.unidad_id
+    );
+  }
+  // === FIN_UNIDAD_ACTIVA_SESION_V2 ===
+
   console.log(
     "Perfil cargado:",
     {
@@ -3211,3 +3276,253 @@ function instalarCambioClaveObligatorio() {
 
 document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
 // === FIN_CAMBIO_CLAVE_OBLIGATORIO_V1 ===
+
+
+// === SELECTOR_UNIDAD_TRABAJO_V2 ===
+(() => {
+  function textoUnidadTrabajoV2(unidad) {
+    return [
+      unidad?.nombre,
+      unidad?.municipio
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  function instalarEstilosUnidadTrabajoV2() {
+    if (
+      document.getElementById(
+        "estilosSelectorUnidadTrabajoV2"
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement("style");
+
+    style.id =
+      "estilosSelectorUnidadTrabajoV2";
+
+    style.textContent = `
+      .selector-unidad-trabajo-v2 {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 48%);
+        gap: 18px;
+        align-items: center;
+        margin: 14px 0 18px;
+        padding: 14px 16px;
+        border: 1px solid #d9dfe5;
+        border-radius: 10px;
+        background: #f7f9fa;
+      }
+
+      .selector-unidad-trabajo-v2 strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .selector-unidad-trabajo-v2 .descripcion {
+        display: block;
+        font-size: .9rem;
+        opacity: .75;
+      }
+
+      .selector-unidad-trabajo-v2 label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+      }
+
+      .selector-unidad-trabajo-v2 select {
+        width: 100%;
+      }
+
+      @media (max-width: 760px) {
+        .selector-unidad-trabajo-v2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function instalarSelectorUnidadTrabajoV2() {
+    const perfil =
+      typeof perfilActual !== "undefined"
+        ? perfilActual
+        : null;
+
+    if (!perfil) {
+      return;
+    }
+
+    const unidades =
+      Array.isArray(
+        perfil.unidades_asignadas
+      )
+        ? perfil.unidades_asignadas.filter(
+            u => u.activo !== false
+          )
+        : [];
+
+    const existente =
+      document.getElementById(
+        "selectorUnidadTrabajoBloqueV2"
+      );
+
+    /*
+      Usuario de una única unidad:
+      funcionamiento tradicional.
+    */
+    if (unidades.length <= 1) {
+      existente?.remove();
+      return;
+    }
+
+    instalarEstilosUnidadTrabajoV2();
+
+    let bloque = existente;
+
+    if (!bloque) {
+      bloque =
+        document.createElement("div");
+
+      bloque.id =
+        "selectorUnidadTrabajoBloqueV2";
+
+      bloque.className =
+        "selector-unidad-trabajo-v2";
+
+      const cabecera =
+        document.querySelector(
+          ".panel-unificado-header"
+        );
+
+      if (!cabecera) {
+        console.warn(
+          "No se ha localizado .panel-unificado-header."
+        );
+        return;
+      }
+
+      cabecera.insertAdjacentElement(
+        "afterend",
+        bloque
+      );
+    }
+
+    bloque.innerHTML = `
+      <div>
+        <strong>Gestión multiunidad</strong>
+
+        <span class="descripcion">
+          Las itinerancias, propuestas y atenciones
+          corresponden a la unidad de trabajo seleccionada.
+        </span>
+      </div>
+
+      <div>
+        <label for="selectorUnidadTrabajoV2">
+          Unidad de trabajo
+        </label>
+
+        <select id="selectorUnidadTrabajoV2">
+          ${unidades.map(u => `
+            <option
+              value="${escapeHtml(u.unidad_id)}"
+              ${
+                String(u.unidad_id) ===
+                String(perfil.unidad_id)
+                  ? "selected"
+                  : ""
+              }
+            >
+              ${escapeHtml(
+                textoUnidadTrabajoV2(u)
+              )}
+              ${
+                u.principal === true
+                  ? " · Principal"
+                  : ""
+              }
+            </option>
+          `).join("")}
+        </select>
+      </div>
+    `;
+
+    const selector =
+      document.getElementById(
+        "selectorUnidadTrabajoV2"
+      );
+
+    selector?.addEventListener(
+      "change",
+      () => {
+        const nuevaUnidadId =
+          String(
+            selector.value || ""
+          ).trim();
+
+        const autorizada =
+          unidades.some(
+            u =>
+              String(u.unidad_id) ===
+              nuevaUnidadId
+          );
+
+        if (!autorizada) {
+          selector.value =
+            perfil.unidad_id || "";
+
+          mostrarMsg(
+            "La unidad seleccionada no está autorizada.",
+            true
+          );
+
+          return;
+        }
+
+        sessionStorage.setItem(
+          `itinerancias_unidad_activa_${perfil.id}`,
+          nuevaUnidadId
+        );
+
+        /*
+          Recarga completa deliberada:
+          de este modo TODAS las funciones existentes
+          vuelven a cargar datos con el nuevo unidad_id.
+        */
+        window.location.reload();
+      }
+    );
+  }
+
+  /*
+    No modificamos el cuerpo de cargarPanel().
+    Solo lo envolvemos para colocar el selector
+    después de que termine su carga habitual.
+  */
+  if (
+    typeof cargarPanel === "function"
+  ) {
+    const cargarPanelOriginalV2 =
+      cargarPanel;
+
+    cargarPanel =
+      async function (...args) {
+        const resultado =
+          await cargarPanelOriginalV2.apply(
+            this,
+            args
+          );
+
+        instalarSelectorUnidadTrabajoV2();
+
+        return resultado;
+      };
+  }
+})();
+// === FIN_SELECTOR_UNIDAD_TRABAJO_V2 ===
