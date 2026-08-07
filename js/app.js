@@ -84,8 +84,10 @@ async function obtenerConvocatoriaVigente() {
   return data;
 }
 
+// === PERFIL_MULTIUNIDAD_SIN_EMBED_AMBIGUO_V1 ===
 async function obtenerPerfil() {
-  const { data: authData, error: authError } = await supabaseClient.auth.getUser();
+  const { data: authData, error: authError } =
+    await supabaseClient.auth.getUser();
 
   if (authError || !authData?.user) {
     window.location.href = "login.html";
@@ -94,37 +96,175 @@ async function obtenerPerfil() {
 
   const user = authData.user;
 
+  /*
+    IMPORTANTE:
+    No incrustamos aquí unidades(...).
+
+    Desde que existe usuarios_unidades hay varias relaciones
+    relacionadas con unidades y PostgREST puede responder HTTP 300
+    por relación ambigua.
+  */
   const { data, error } = await supabaseClient
     .from("usuarios_perfiles")
-    .select("id,email,nombre,rol,unidad_id,activo,debe_cambiar_clave,unidades(nombre,origen_interno_id)")
+    .select(
+      "id,email,nombre,rol,unidad_id,activo,debe_cambiar_clave"
+    )
     .eq("id", user.id)
     .maybeSingle();
 
   if (error || !data) {
-    mostrarMsg("No se ha podido cargar tu perfil. Contacta con Dirección Provincial.", true);
+    console.error(
+      "Error cargando usuarios_perfiles:",
+      error
+    );
+
+    mostrarMsg(
+      "No se ha podido cargar tu perfil. Contacta con Dirección Provincial.",
+      true
+    );
+
     return null;
   }
 
   if (!data.activo) {
-    mostrarMsg("Tu usuario no está activo. Contacta con Dirección Provincial.", true);
+    mostrarMsg(
+      "Tu usuario no está activo. Contacta con Dirección Provincial.",
+      true
+    );
 
     try {
       await supabaseClient.auth.signOut();
     } catch (err) {
-      console.error("No se ha podido cerrar la sesión del usuario inactivo", err);
+      console.error(
+        "No se ha podido cerrar la sesión del usuario inactivo",
+        err
+      );
     }
 
     perfilActual = null;
 
     setTimeout(() => {
-      window.location.href = "login.html?motivo=usuario-inactivo";
+      window.location.href =
+        "login.html?motivo=usuario-inactivo";
     }, 800);
 
     return null;
   }
 
+  /*
+    Cargamos todas las unidades asignadas al usuario.
+  */
+  const {
+    data: relaciones,
+    error: errorRelaciones
+  } = await supabaseClient
+    .from("usuarios_unidades")
+    .select(
+      "usuario_id,unidad_id,principal,activo,unidades(id,nombre,municipio,cif,origen_interno_id)"
+    )
+    .eq("usuario_id", user.id)
+    .eq("activo", true);
+
+  if (errorRelaciones) {
+    console.error(
+      "Error cargando usuarios_unidades:",
+      errorRelaciones
+    );
+
+    mostrarMsg(
+      "No se han podido cargar las unidades asignadas a tu usuario. Contacta con Dirección Provincial.",
+      true
+    );
+
+    return null;
+  }
+
+  const asignaciones = Array.isArray(relaciones)
+    ? relaciones
+    : [];
+
+  /*
+    Compatibilidad:
+    - si existe una marcada como principal, usamos esa;
+    - si no, buscamos la que coincide con usuarios_perfiles.unidad_id;
+    - como último recurso, usamos la primera.
+  */
+  const asignacionPrincipal =
+    asignaciones.find(r => r.principal === true) ||
+    asignaciones.find(
+      r => String(r.unidad_id) === String(data.unidad_id)
+    ) ||
+    asignaciones[0] ||
+    null;
+
+  /*
+    Si todavía no hubiera relación en usuarios_unidades,
+    mantenemos compatibilidad con perfiles antiguos consultando
+    directamente su unidad principal.
+  */
+  let unidadPrincipal =
+    asignacionPrincipal?.unidades ||
+    null;
+
+  if (!unidadPrincipal && data.unidad_id) {
+    const {
+      data: unidadDirecta,
+      error: errorUnidadDirecta
+    } = await supabaseClient
+      .from("unidades")
+      .select(
+        "id,nombre,municipio,cif,origen_interno_id"
+      )
+      .eq("id", data.unidad_id)
+      .maybeSingle();
+
+    if (errorUnidadDirecta) {
+      console.error(
+        "Error cargando unidad principal:",
+        errorUnidadDirecta
+      );
+    } else {
+      unidadPrincipal = unidadDirecta || null;
+    }
+  }
+
+  /*
+    Conservamos las propiedades antiguas para no romper el panel.
+  */
+  if (asignacionPrincipal?.unidad_id) {
+    data.unidad_id =
+      asignacionPrincipal.unidad_id;
+  }
+
+  data.unidades =
+    unidadPrincipal;
+
+  /*
+    Nueva información multiunidad.
+  */
+  data.unidades_asignadas =
+    asignaciones.map(r => ({
+      usuario_id: r.usuario_id,
+      unidad_id: r.unidad_id,
+      principal: r.principal === true,
+      activo: r.activo !== false,
+      ...(r.unidades || {})
+    }));
+
+  console.log(
+    "Perfil cargado:",
+    {
+      id: data.id,
+      email: data.email,
+      unidad_principal: data.unidad_id,
+      unidades_asignadas:
+        data.unidades_asignadas.length
+    }
+  );
+
   return data;
 }
+// === FIN_PERFIL_MULTIUNIDAD_SIN_EMBED_AMBIGUO_V1 ===
 
 async function login(email, password) {
   const { error } = await supabaseClient.auth.signInWithPassword({
