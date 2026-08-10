@@ -3526,3 +3526,253 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
   }
 })();
 // === FIN_SELECTOR_UNIDAD_TRABAJO_V2 ===
+
+// === MODO_ADMIN_IMPERSONACION_V1 ===
+(() => {
+  const CLAVE_MODO =
+    "itinerancias_modo_admin_impersonacion";
+
+  const CLAVE_USUARIO =
+    "itinerancias_modo_admin_usuario_id";
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  if (
+    params.get("modo_admin") === "1"
+  ) {
+    sessionStorage.setItem(
+      CLAVE_MODO,
+      "1"
+    );
+  }
+
+  function instalarEstilosModoAdmin() {
+    if (
+      document.getElementById(
+        "estilosModoAdminImpersonacion"
+      )
+    ) {
+      return;
+    }
+
+    const style =
+      document.createElement("style");
+
+    style.id =
+      "estilosModoAdminImpersonacion";
+
+    style.textContent = `
+      .modo-admin-impersonacion {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 13px 16px;
+        margin: 0 0 18px;
+        border: 2px solid #8b1e1e;
+        border-radius: 10px;
+        background: #fff1f1;
+        color: #5c1111;
+      }
+
+      .modo-admin-impersonacion strong {
+        display: block;
+        margin-bottom: 3px;
+      }
+
+      .modo-admin-impersonacion span {
+        display: block;
+      }
+
+      .modo-admin-impersonacion button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 700px) {
+        .modo-admin-impersonacion {
+          display: block;
+        }
+
+        .modo-admin-impersonacion button {
+          width: 100%;
+          margin-top: 12px;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  async function salirModoAdmin() {
+    try {
+      sessionStorage.removeItem(
+        CLAVE_MODO
+      );
+
+      sessionStorage.removeItem(
+        CLAVE_USUARIO
+      );
+
+      await supabaseClient.auth.signOut();
+
+    } catch (error) {
+      console.error(
+        "Error cerrando modo administración:",
+        error
+      );
+    }
+
+    try {
+      window.close();
+    } catch {}
+
+    setTimeout(() => {
+      window.location.href =
+        "login.html";
+    }, 250);
+  }
+
+  function mostrarModoAdmin() {
+    if (
+      sessionStorage.getItem(
+        CLAVE_MODO
+      ) !== "1"
+    ) {
+      return false;
+    }
+
+    if (
+      typeof perfilActual === "undefined" ||
+      !perfilActual?.id
+    ) {
+      return false;
+    }
+
+    const usuarioGuardado =
+      sessionStorage.getItem(
+        CLAVE_USUARIO
+      );
+
+    /*
+      La primera vez vinculamos el modo admin
+      al usuario que realmente ha iniciado sesión.
+    */
+    if (!usuarioGuardado) {
+      sessionStorage.setItem(
+        CLAVE_USUARIO,
+        perfilActual.id
+      );
+    } else if (
+      String(usuarioGuardado) !==
+      String(perfilActual.id)
+    ) {
+      /*
+        Evita que una marca antigua de sessionStorage
+        aparezca con otro usuario.
+      */
+      sessionStorage.removeItem(
+        CLAVE_MODO
+      );
+
+      sessionStorage.removeItem(
+        CLAVE_USUARIO
+      );
+
+      return true;
+    }
+
+    if (
+      document.getElementById(
+        "modoAdminImpersonacion"
+      )
+    ) {
+      return true;
+    }
+
+    instalarEstilosModoAdmin();
+
+    const barra =
+      document.createElement("div");
+
+    barra.id =
+      "modoAdminImpersonacion";
+
+    barra.className =
+      "modo-admin-impersonacion";
+
+    const nombre =
+      perfilActual.nombre ||
+      perfilActual.email ||
+      "usuario";
+
+    barra.innerHTML = `
+      <div>
+        <strong>
+          MODO ADMINISTRACIÓN
+        </strong>
+
+        <span>
+          Estás actuando como
+          <strong style="display:inline">
+            ${escapeHtml(nombre)}
+          </strong>
+          ${perfilActual.email
+            ? ` · ${escapeHtml(perfilActual.email)}`
+            : ""
+          }
+        </span>
+      </div>
+
+      <button
+        type="button"
+        id="salirModoAdminImpersonacion"
+        class="secundario"
+      >
+        Salir de este usuario
+      </button>
+    `;
+
+    const main =
+      document.querySelector("main");
+
+    if (main) {
+      main.prepend(barra);
+    } else {
+      document.body.prepend(barra);
+    }
+
+    document
+      .getElementById(
+        "salirModoAdminImpersonacion"
+      )
+      ?.addEventListener(
+        "click",
+        salirModoAdmin
+      );
+
+    return true;
+  }
+
+  /*
+    obtenerPerfil() es asíncrono. Esperamos únicamente
+    hasta que perfilActual esté disponible.
+  */
+  let intentos = 0;
+
+  const timer =
+    setInterval(() => {
+      intentos += 1;
+
+      if (
+        mostrarModoAdmin() ||
+        intentos >= 100
+      ) {
+        clearInterval(timer);
+      }
+    }, 100);
+})();
+// === FIN_MODO_ADMIN_IMPERSONACION_V1 ===
