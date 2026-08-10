@@ -29,6 +29,19 @@
           <option value="BAJA">Baja de itinerancia</option>
         </select>
 
+        <div id="bloqueUnidadResponsableEdicion" class="oculto">
+          <label for="unidadResponsableEdicion">
+            Unidad responsable
+          </label>
+
+          <select id="unidadResponsableEdicion"></select>
+
+          <p class="muted ayuda-formulario">
+            Si tienes varias unidades asignadas, puedes indicar cuál será responsable de esta propuesta.
+          </p>
+        </div>
+
+
         <div id="bloqueItineranciaExistente" class="bloque-itinerancia-existente oculto">
           <label for="itineranciaPublicadaId">Itinerancia existente</label>
           <select id="itineranciaPublicadaId">
@@ -71,7 +84,7 @@
           </div>
         </div>
 
-        <label>Persona de contacto</label>
+        <label>Persona que realiza la Itinerancia</label>
         <input type="text" id="contacto">
 
         <label>Teléfono</label>
@@ -101,6 +114,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-config.js"></script>
-  <script src="js/app.js?v=20260810-editar-eliminar-pendientes-v1"></script>
+  <script src="js/app.js?v=20260810-unidad-edicion-multi-v1"></script>
 </body>
 </html>

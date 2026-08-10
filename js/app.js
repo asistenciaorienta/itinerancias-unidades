@@ -160,7 +160,7 @@ async function obtenerPerfil() {
   } = await supabaseClient
     .from("usuarios_unidades")
     .select(
-      "usuario_id,unidad_id,principal,activo,unidades(id,nombre,municipio,cif,origen_interno_id)"
+      "usuario_id,unidad_id,principal,activo,unidades(id,nombre,municipio,direccion,cif,origen_interno_id,expediente_id,expediente,codigo_expediente,entidad_expediente,convocatoria_id)"
     )
     .eq("usuario_id", user.id)
     .eq("activo", true);
@@ -213,7 +213,7 @@ async function obtenerPerfil() {
     } = await supabaseClient
       .from("unidades")
       .select(
-        "id,nombre,municipio,cif,origen_interno_id"
+        "id,nombre,municipio,direccion,cif,origen_interno_id,expediente_id,expediente,codigo_expediente,entidad_expediente,convocatoria_id"
       )
       .eq("id", data.unidad_id)
       .maybeSingle();
@@ -1210,6 +1210,218 @@ async function aplicarFechaFinConvocatoriaPorDefecto() {
   }
 }
 
+
+// === UNIDAD_RESPONSABLE_EDICION_MULTI_V1 ===
+
+function unidadesAsignadasActivasFormulario(perfil) {
+  const lista =
+    Array.isArray(perfil?.unidades_asignadas)
+      ? perfil.unidades_asignadas
+      : [];
+
+  const activas =
+    lista.filter(
+      u => u && u.activo !== false
+    );
+
+  if (activas.length) {
+    return activas;
+  }
+
+  /*
+    Compatibilidad con usuarios antiguos
+    que solo tienen usuarios_perfiles.unidad_id.
+  */
+  if (perfil?.unidades) {
+    return [{
+      ...perfil.unidades,
+      unidad_id:
+        perfil.unidades.unidad_id ||
+        perfil.unidades.id ||
+        perfil.unidad_id,
+      principal: true,
+      activo: true
+    }];
+  }
+
+  return [];
+}
+
+
+function idUnidadFormulario(u) {
+  return String(
+    u?.unidad_id ||
+    u?.id ||
+    ""
+  );
+}
+
+
+function textoUnidadResponsableFormulario(u) {
+  const partes = [
+    u?.nombre,
+    u?.municipio,
+    u?.direccion
+  ].filter(Boolean);
+
+  let texto =
+    partes.join(" · ");
+
+  if (u?.principal === true) {
+    texto += " · Principal";
+  }
+
+  return texto;
+}
+
+
+function unidadResponsableSeleccionadaFormulario(perfil) {
+  const unidades =
+    unidadesAsignadasActivasFormulario(
+      perfil
+    );
+
+  const selector =
+    $("unidadResponsableEdicion");
+
+  const idElegido =
+    String(
+      selector?.value ||
+      perfil?.unidad_id ||
+      ""
+    );
+
+  return (
+    unidades.find(
+      u =>
+        idUnidadFormulario(u) ===
+        idElegido
+    ) ||
+    unidades.find(
+      u =>
+        idUnidadFormulario(u) ===
+        String(perfil?.unidad_id || "")
+    ) ||
+    unidades[0] ||
+    perfil?.unidades ||
+    null
+  );
+}
+
+
+function aplicarUnidadResponsablePayload(
+  payload,
+  unidad
+) {
+  if (!unidad) return;
+
+  const unidadId =
+    idUnidadFormulario(unidad);
+
+  payload.unidad_id =
+    unidadId || null;
+
+  payload.unidad_nombre =
+    unidad.nombre || null;
+
+  payload.cif =
+    unidad.cif || null;
+
+  payload.unidad_origen_interno_id =
+    unidad.origen_interno_id ??
+    null;
+
+  payload.expediente_id =
+    unidad.expediente_id || null;
+
+  payload.expediente =
+    unidad.expediente || null;
+
+  payload.codigo_expediente =
+    unidad.codigo_expediente || null;
+
+  payload.entidad_expediente =
+    unidad.entidad_expediente || null;
+}
+
+
+function prepararSelectorUnidadResponsableEdicion(
+  perfil,
+  propuesta
+) {
+  const bloque =
+    $("bloqueUnidadResponsableEdicion");
+
+  const selector =
+    $("unidadResponsableEdicion");
+
+  if (!bloque || !selector) {
+    return;
+  }
+
+  const unidades =
+    unidadesAsignadasActivasFormulario(
+      perfil
+    );
+
+  /*
+    Con una sola unidad no mostramos ningún
+    selector adicional.
+  */
+  if (unidades.length <= 1) {
+    bloque.classList.add("oculto");
+
+    if (unidades[0]) {
+      selector.innerHTML = `
+        <option value="${escapeHtml(idUnidadFormulario(unidades[0]))}">
+          ${escapeHtml(textoUnidadResponsableFormulario(unidades[0]))}
+        </option>
+      `;
+
+      selector.value =
+        idUnidadFormulario(
+          unidades[0]
+        );
+    }
+
+    return;
+  }
+
+  bloque.classList.remove("oculto");
+
+  selector.innerHTML =
+    unidades
+      .map(
+        u => `
+          <option value="${escapeHtml(idUnidadFormulario(u))}">
+            ${escapeHtml(textoUnidadResponsableFormulario(u))}
+          </option>
+        `
+      )
+      .join("");
+
+  const actual =
+    String(
+      propuesta?.unidad_id ||
+      perfil?.unidad_id ||
+      ""
+    );
+
+  if (
+    unidades.some(
+      u =>
+        idUnidadFormulario(u) ===
+        actual
+    )
+  ) {
+    selector.value =
+      actual;
+  }
+}
+
+// === FIN_UNIDAD_RESPONSABLE_EDICION_MULTI_V1 ===
+
+
 async function guardarPropuesta(estado) {
   const perfil = await obtenerPerfil();
   if (!perfil) return;
@@ -1246,9 +1458,61 @@ async function guardarPropuesta(estado) {
     return;
   }
 
-  payload.titulo = generarTituloPropuesta(perfil, payload);
+  const unidadResponsable =
+    unidadResponsableSeleccionadaFormulario(
+      perfil
+    );
 
-  payload.unidad_id = perfil.unidad_id;
+  if (!unidadResponsable) {
+    mostrarMsg(
+      "No se ha podido determinar la unidad responsable de la propuesta.",
+      true
+    );
+    return;
+  }
+
+  const unidadResponsableId =
+    idUnidadFormulario(
+      unidadResponsable
+    );
+
+  if (!unidadResponsableId) {
+    mostrarMsg(
+      "La unidad responsable seleccionada no es válida.",
+      true
+    );
+    return;
+  }
+
+  /*
+    Generamos el título utilizando la unidad
+    realmente seleccionada, no necesariamente
+    la unidad activa con la que entró al formulario.
+  */
+  const perfilParaTitulo = {
+    ...perfil,
+    unidad_id:
+      unidadResponsableId,
+    unidades:
+      unidadResponsable
+  };
+
+  payload.titulo =
+    generarTituloPropuesta(
+      perfilParaTitulo,
+      payload
+    );
+
+  /*
+    Guardamos también los datos normalizados de
+    la unidad para que filtros y publicación sean
+    coherentes.
+  */
+  aplicarUnidadResponsablePayload(
+    payload,
+    unidadResponsable
+  );
+
   payload.creada_por = perfil.id;
   payload.convocatoria_id = convocatoria.id;
 
@@ -1279,6 +1543,22 @@ async function guardarPropuesta(estado) {
     console.error(error);
     mostrarMsg("No se ha podido guardar la propuesta: " + error.message, true);
     return;
+  }
+
+  /*
+    Si al modificar se ha trasladado a otra unidad,
+    al volver al panel dejamos seleccionada esa
+    unidad para que el usuario vea inmediatamente
+    la propuesta modificada.
+  */
+  if (
+    perfil?.id &&
+    unidadResponsableId
+  ) {
+    sessionStorage.setItem(
+      `itinerancias_unidad_activa_${perfil.id}`,
+      unidadResponsableId
+    );
   }
 
   mostrarMsg(
@@ -1739,6 +2019,11 @@ async function cargarPropuestaParaEditar() {
     window.location.reload();
     return;
   }
+
+  prepararSelectorUnidadResponsableEdicion(
+    perfil,
+    data
+  );
 
   setValorFormulario("tipo", data.tipo || "NUEVA");
 
