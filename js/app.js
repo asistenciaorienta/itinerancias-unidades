@@ -1682,8 +1682,61 @@ async function cargarPropuestaParaEditar() {
     return;
   }
 
-  if (!["BORRADOR", "RECHAZADA"].includes(String(data.estado || ""))) {
-    mostrarMsg("Esta propuesta ya no se puede editar porque está enviada o publicada.", true);
+  if (!["BORRADOR", "RECHAZADA", "PENDIENTE_VALIDACION"].includes(String(data.estado || ""))) {
+    mostrarMsg("Esta propuesta ya no se puede editar porque está publicada o archivada.", true);
+    return;
+  }
+
+  /*
+    SEGURIDAD MULTIUNIDAD:
+    la propuesta solo puede editarse si pertenece a una
+    unidad asignada al usuario.
+
+    Además, si el usuario tiene varias unidades y la
+    unidad activa no coincide, activamos la unidad de
+    la propuesta y recargamos antes de editar.
+  */
+  const unidadesAutorizadasEdicion =
+    Array.isArray(perfil.unidades_asignadas)
+      ? perfil.unidades_asignadas
+      : [];
+
+  const unidadPropuestaId =
+    String(data.unidad_id || "");
+
+  const unidadAutorizada =
+    String(perfil.unidad_id || "") === unidadPropuestaId ||
+    unidadesAutorizadasEdicion.some(
+      u =>
+        String(
+          u.unidad_id ||
+          u.id ||
+          ""
+        ) === unidadPropuestaId
+    );
+
+  if (
+    unidadPropuestaId &&
+    !unidadAutorizada
+  ) {
+    mostrarMsg(
+      "Esta propuesta pertenece a una unidad que no tienes asignada.",
+      true
+    );
+    return;
+  }
+
+  if (
+    unidadPropuestaId &&
+    String(perfil.unidad_id || "") !==
+      unidadPropuestaId
+  ) {
+    sessionStorage.setItem(
+      `itinerancias_unidad_activa_${perfil.id}`,
+      unidadPropuestaId
+    );
+
+    window.location.reload();
     return;
   }
 
@@ -1707,10 +1760,65 @@ async function cargarPropuestaParaEditar() {
   setValorFormulario("observacionesPublicas", data.observaciones_publicas);
   setValorFormulario("observacionesUnidad", data.observaciones_unidad);
 
-  const h1 = document.querySelector("h1");
-  if (h1) h1.textContent = "Editar propuesta de itinerancia";
+  const estadoEdicion =
+    String(
+      data.estado || ""
+    ).toUpperCase();
 
-  mostrarMsg("Editando borrador de propuesta.");
+  const h1 =
+    document.querySelector("h1");
+
+  if (h1) {
+    h1.textContent =
+      estadoEdicion === "PENDIENTE_VALIDACION"
+        ? "Modificar propuesta pendiente"
+        : "Editar propuesta de itinerancia";
+  }
+
+  const botonEnviar =
+    $("formNuevaItinerancia")
+      ?.querySelector(
+        'button[type="submit"]'
+      );
+
+  const botonBorrador =
+    $("btnGuardarBorrador");
+
+  if (
+    estadoEdicion ===
+    "PENDIENTE_VALIDACION"
+  ) {
+    /*
+      Una propuesta ya enviada no debe volver
+      accidentalmente a BORRADOR.
+    */
+    if (botonBorrador) {
+      botonBorrador.classList.add(
+        "oculto"
+      );
+    }
+
+    if (botonEnviar) {
+      botonEnviar.textContent =
+        "Guardar cambios";
+    }
+
+    mostrarMsg(
+      "Estás modificando una propuesta pendiente de validación. Al guardar continuará pendiente de revisión."
+    );
+
+  } else {
+    if (botonEnviar) {
+      botonEnviar.textContent =
+        "Enviar a validación";
+    }
+
+    mostrarMsg(
+      estadoEdicion === "RECHAZADA"
+        ? "Editando propuesta rechazada."
+        : "Editando borrador de propuesta."
+    );
+  }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -3776,3 +3884,312 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
     }, 100);
 })();
 // === FIN_MODO_ADMIN_IMPERSONACION_V1 ===
+
+
+// === GESTION_PROPUESTA_PENDIENTE_UNIDAD_V1 ===
+
+function itemEsPropuestaPendienteUnidad(
+  item
+) {
+  const d =
+    item?.data || item || {};
+
+  return (
+    item?.tipoListado === "PROPUESTA" &&
+    String(
+      item?.estado ||
+      d.estado ||
+      ""
+    ).toUpperCase() ===
+      "PENDIENTE_VALIDACION"
+  );
+}
+
+
+function botonesGestionPropuestaPendienteUnidad(
+  item
+) {
+  if (
+    !itemEsPropuestaPendienteUnidad(
+      item
+    )
+  ) {
+    return "";
+  }
+
+  const d =
+    item?.data || {};
+
+  const id =
+    d.id ||
+    item.id ||
+    "";
+
+  if (!id) {
+    return "";
+  }
+
+  return `
+    <a
+      class="btn secundario btn-modificar-pendiente-unidad"
+      href="nueva-itinerancia.html?id=${encodeURIComponent(id)}"
+    >
+      Modificar
+    </a>
+
+    <button
+      type="button"
+      class="btn peligro btn-eliminar-pendiente-unidad"
+      onclick="eliminarPropuestaPendienteUnidad('${escapeHtml(id)}')"
+    >
+      Eliminar propuesta
+    </button>
+  `;
+}
+
+
+window.eliminarPropuestaPendienteUnidad =
+  async function eliminarPropuestaPendienteUnidad(
+    id
+  ) {
+    const propuesta =
+      (propuestasActuales || [])
+        .find(
+          p =>
+            String(p.id) ===
+            String(id)
+        );
+
+    if (!propuesta) {
+      mostrarMsg(
+        "No se ha encontrado la propuesta pendiente.",
+        true
+      );
+      return;
+    }
+
+    if (
+      String(
+        propuesta.estado || ""
+      ).toUpperCase() !==
+      "PENDIENTE_VALIDACION"
+    ) {
+      mostrarMsg(
+        "Esta propuesta ya no está pendiente y no puede eliminarse desde aquí.",
+        true
+      );
+      return;
+    }
+
+    /*
+      Protección multiunidad:
+      solo actuamos sobre la unidad que está
+      actualmente seleccionada.
+    */
+    if (
+      perfilActual?.unidad_id &&
+      propuesta.unidad_id &&
+      String(
+        perfilActual.unidad_id
+      ) !==
+      String(
+        propuesta.unidad_id
+      )
+    ) {
+      mostrarMsg(
+        "La propuesta no pertenece a la unidad de trabajo seleccionada.",
+        true
+      );
+      return;
+    }
+
+    const titulo =
+      propuesta.titulo ||
+      propuesta.municipio ||
+      "esta propuesta";
+
+    const ok1 =
+      confirm(
+        "¿Quieres eliminar esta propuesta pendiente?\n\n" +
+        titulo +
+        "\n\n" +
+        "Desaparecerá del listado de pendientes."
+      );
+
+    if (!ok1) {
+      return;
+    }
+
+    const ok2 =
+      confirm(
+        "Confirma la eliminación de la propuesta.\n\n" +
+        "No se borrará físicamente: quedará archivada para conservar la trazabilidad."
+      );
+
+    if (!ok2) {
+      return;
+    }
+
+    try {
+      const cliente =
+        typeof supabaseClient !==
+        "undefined"
+          ? supabaseClient
+          : window.supabaseClient;
+
+      if (!cliente) {
+        throw new Error(
+          "No se ha localizado el cliente de Supabase."
+        );
+      }
+
+      let consulta =
+        cliente
+          .from(
+            "itinerancias_propuestas"
+          )
+          .update({
+            estado:
+              "ARCHIVADA",
+
+            updated_at:
+              new Date().toISOString()
+          })
+          .eq(
+            "id",
+            id
+          )
+          .eq(
+            "estado",
+            "PENDIENTE_VALIDACION"
+          );
+
+      if (
+        perfilActual?.unidad_id
+      ) {
+        consulta =
+          consulta.eq(
+            "unidad_id",
+            perfilActual.unidad_id
+          );
+      }
+
+      const {
+        data,
+        error
+      } =
+        await consulta
+          .select("id");
+
+      if (error) {
+        throw error;
+      }
+
+      if (
+        !Array.isArray(data) ||
+        !data.length
+      ) {
+        throw new Error(
+          "La propuesta no se ha modificado. Puede que su estado o unidad hayan cambiado."
+        );
+      }
+
+      propuestasActuales =
+        (propuestasActuales || [])
+          .filter(
+            p =>
+              String(p.id) !==
+              String(id)
+          );
+
+      mostrarMsg(
+        "Propuesta pendiente eliminada correctamente. Se ha conservado como archivada."
+      );
+
+      if (
+        typeof renderPanelUnificado ===
+        "function"
+      ) {
+        renderPanelUnificado();
+      } else {
+        window.location.reload();
+      }
+
+    } catch (err) {
+      console.error(err);
+
+      mostrarMsg(
+        "No se ha podido eliminar la propuesta pendiente: " +
+        (
+          err.message ||
+          err
+        ),
+        true
+      );
+    }
+  };
+
+
+function instalarGestionPropuestasPendientesUnidad() {
+  if (
+    typeof accionesItemUnificado !==
+    "function"
+  ) {
+    console.warn(
+      "No se ha localizado accionesItemUnificado para instalar la gestión de pendientes."
+    );
+    return;
+  }
+
+  if (
+    accionesItemUnificado
+      .__gestionPendientesUnidadWrapped
+  ) {
+    return;
+  }
+
+  const original =
+    accionesItemUnificado;
+
+  const envuelta =
+    function accionesItemUnificadoConGestionPendientes(
+      item
+    ) {
+      const htmlOriginal =
+        original.call(
+          this,
+          item
+        ) || "";
+
+      if (
+        !itemEsPropuestaPendienteUnidad(
+          item
+        )
+      ) {
+        return htmlOriginal;
+      }
+
+      /*
+        PENDIENTE_VALIDACION no tenía acciones
+        en la función original.
+      */
+      return (
+        htmlOriginal +
+        botonesGestionPropuestaPendienteUnidad(
+          item
+        )
+      );
+    };
+
+  envuelta
+    .__gestionPendientesUnidadWrapped =
+      true;
+
+  accionesItemUnificado =
+    envuelta;
+}
+
+
+instalarGestionPropuestasPendientesUnidad();
+
+// === FIN_GESTION_PROPUESTA_PENDIENTE_UNIDAD_V1 ===
