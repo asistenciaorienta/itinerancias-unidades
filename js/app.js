@@ -999,6 +999,378 @@ function renderPanelUnificado() {
   }).join("");
 }
 
+
+// === AVISO_RECHAZADAS_UNIDAD_V1 ===
+
+function huellaRechazoUnidad(propuesta) {
+  const id =
+    String(propuesta?.id || "").trim();
+
+  const fecha =
+    String(
+      propuesta?.rechazada_at ||
+      propuesta?.updated_at ||
+      "sin-fecha"
+    ).trim();
+
+  return `${id}__${fecha}`;
+}
+
+
+function claveRechazoVistoUnidad(propuesta) {
+  return (
+    "itinerancias_rechazo_visto_" +
+    huellaRechazoUnidad(propuesta)
+  );
+}
+
+
+function claveRechazoPospuestoUnidad(propuesta) {
+  return (
+    "itinerancias_rechazo_pospuesto_" +
+    huellaRechazoUnidad(propuesta)
+  );
+}
+
+
+function rechazoOcultoAutomaticamenteUnidad(
+  propuesta
+) {
+  try {
+    return (
+      localStorage.getItem(
+        claveRechazoVistoUnidad(propuesta)
+      ) === "1" ||
+      sessionStorage.getItem(
+        claveRechazoPospuestoUnidad(propuesta)
+      ) === "1"
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+
+function propuestasRechazadasAvisablesUnidad() {
+  return (propuestasActuales || [])
+    .filter(
+      p =>
+        String(
+          p?.estado || ""
+        ).toUpperCase() ===
+          "RECHAZADA"
+    )
+    .filter(
+      p =>
+        !rechazoOcultoAutomaticamenteUnidad(
+          p
+        )
+    )
+    .sort(
+      (a, b) =>
+        String(
+          b.rechazada_at ||
+          b.updated_at ||
+          ""
+        ).localeCompare(
+          String(
+            a.rechazada_at ||
+            a.updated_at ||
+            ""
+          )
+        )
+    );
+}
+
+
+function marcarRechazosVistosUnidad(lista) {
+  for (
+    const propuesta of
+    Array.isArray(lista) ? lista : []
+  ) {
+    try {
+      localStorage.setItem(
+        claveRechazoVistoUnidad(propuesta),
+        "1"
+      );
+
+      sessionStorage.removeItem(
+        claveRechazoPospuestoUnidad(
+          propuesta
+        )
+      );
+    } catch (_) {}
+  }
+}
+
+
+function posponerRechazosUnidad(lista) {
+  for (
+    const propuesta of
+    Array.isArray(lista) ? lista : []
+  ) {
+    try {
+      sessionStorage.setItem(
+        claveRechazoPospuestoUnidad(
+          propuesta
+        ),
+        "1"
+      );
+    } catch (_) {}
+  }
+}
+
+
+function asegurarModalRechazadasUnidad() {
+  let modal =
+    document.getElementById(
+      "modalRechazadasUnidad"
+    );
+
+  if (modal) return modal;
+
+  modal =
+    document.createElement("dialog");
+
+  modal.id =
+    "modalRechazadasUnidad";
+
+  modal.innerHTML = `
+    <div class="modal-card modal-rechazos-unidad-card">
+
+      <div class="modal-rechazos-unidad-header">
+        <div>
+          <h2>
+            Propuestas devueltas por Dirección Provincial
+          </h2>
+
+          <p class="muted">
+            Revisa las observaciones indicadas,
+            corrige la propuesta y vuelve a enviarla
+            a validación.
+          </p>
+        </div>
+      </div>
+
+      <div
+        id="listaRechazosUnidad"
+        class="lista-rechazos-unidad"
+      ></div>
+
+      <label
+        class="marcar-vistos-rechazos-unidad"
+      >
+        <input
+          type="checkbox"
+          id="checkNoMostrarRechazosUnidad"
+        >
+
+        <span>
+          Marcar estos avisos como vistos y
+          no volver a mostrarlos automáticamente
+          en este navegador.
+        </span>
+      </label>
+
+      <div class="acciones modal-actions">
+        <button
+          type="button"
+          id="btnVerMasTardeRechazosUnidad"
+          class="secundario"
+        >
+          Ver más tarde
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  const cerrar =
+    document.getElementById(
+      "btnVerMasTardeRechazosUnidad"
+    );
+
+  cerrar?.addEventListener(
+    "click",
+    () => {
+      const lista =
+        Array.isArray(
+          modal.__rechazosMostrados
+        )
+          ? modal.__rechazosMostrados
+          : [];
+
+      const marcar =
+        document.getElementById(
+          "checkNoMostrarRechazosUnidad"
+        )?.checked === true;
+
+      if (marcar) {
+        marcarRechazosVistosUnidad(lista);
+      } else {
+        /*
+          "Ver más tarde":
+          no vuelve a interrumpir durante esta
+          sesión del navegador, pero reaparecerá
+          en una sesión posterior.
+        */
+        posponerRechazosUnidad(lista);
+      }
+
+      modal.close();
+    }
+  );
+
+
+  modal.addEventListener(
+    "cancel",
+    () => {
+      posponerRechazosUnidad(
+        modal.__rechazosMostrados || []
+      );
+    }
+  );
+
+
+  modal.addEventListener(
+    "click",
+    evento => {
+      const enlace =
+        evento.target.closest(
+          "[data-corregir-rechazo]"
+        );
+
+      if (!enlace) return;
+
+      const marcar =
+        document.getElementById(
+          "checkNoMostrarRechazosUnidad"
+        )?.checked === true;
+
+      if (marcar) {
+        marcarRechazosVistosUnidad(
+          modal.__rechazosMostrados || []
+        );
+      }
+    }
+  );
+
+  return modal;
+}
+
+
+function mostrarModalRechazadasUnidad() {
+  const lista =
+    propuestasRechazadasAvisablesUnidad();
+
+  if (!lista.length) return;
+
+  const modal =
+    asegurarModalRechazadasUnidad();
+
+  const cont =
+    document.getElementById(
+      "listaRechazosUnidad"
+    );
+
+  if (!cont) return;
+
+  modal.__rechazosMostrados =
+    lista.slice();
+
+  const check =
+    document.getElementById(
+      "checkNoMostrarRechazosUnidad"
+    );
+
+  if (check) {
+    check.checked = false;
+  }
+
+  cont.innerHTML =
+    lista.map(
+      p => {
+        const fecha =
+          p.rechazada_at
+            ? fechaES(p.rechazada_at)
+            : "";
+
+        const motivo =
+          String(
+            p.observaciones_dp || ""
+          ).trim() ||
+          "Dirección Provincial no ha indicado observaciones adicionales.";
+
+        return `
+          <article class="rechazo-unidad-item">
+
+            <div class="rechazo-unidad-cabecera">
+              <div>
+                <h3>
+                  ${escapeHtml(
+                    p.titulo ||
+                    p.municipio ||
+                    "Propuesta"
+                  )}
+                </h3>
+
+                <p class="muted">
+                  ${p.municipio
+                    ? escapeHtml(p.municipio)
+                    : ""}
+                  ${fecha
+                    ? " · Devuelta el " +
+                      escapeHtml(fecha)
+                    : ""}
+                </p>
+              </div>
+
+              <span
+                class="estado estado-rechazada"
+              >
+                RECHAZADA
+              </span>
+            </div>
+
+            <div class="motivo-rechazo-unidad">
+              <strong>
+                Observaciones de Dirección Provincial
+              </strong>
+
+              <p>
+                ${escapeHtml(motivo)}
+              </p>
+            </div>
+
+            <div class="acciones rechazo-unidad-acciones">
+              <a
+                class="btn"
+                data-corregir-rechazo="${escapeHtml(
+                  p.id
+                )}"
+                href="nueva-itinerancia.html?id=${encodeURIComponent(
+                  p.id
+                )}"
+              >
+                Corregir propuesta
+              </a>
+            </div>
+
+          </article>
+        `;
+      }
+    ).join("");
+
+  if (!modal.open) {
+    modal.showModal();
+  }
+}
+
+// === FIN_AVISO_RECHAZADAS_UNIDAD_V1 ===
+
+
 async function cargarPanel() {
   const perfil = await obtenerPerfil();
   if (!perfil) return;
@@ -1043,6 +1415,13 @@ async function cargarPanel() {
     await cargarActividadesUnidad(convocatoriaActual.id);
 
     renderPanelUnificado();
+
+    /*
+      Una vez cargadas y pintadas las propuestas
+      comprobamos si Dirección Provincial ha
+      devuelto alguna.
+    */
+    mostrarModalRechazadasUnidad();
 
   } catch (error) {
     console.error(error);
@@ -2098,11 +2477,31 @@ async function cargarPropuestaParaEditar() {
         "Enviar a validación";
     }
 
-    mostrarMsg(
-      estadoEdicion === "RECHAZADA"
-        ? "Editando propuesta rechazada."
-        : "Editando borrador de propuesta."
-    );
+    if (
+      estadoEdicion ===
+      "RECHAZADA"
+    ) {
+      const motivoRechazo =
+        String(
+          data.observaciones_dp || ""
+        ).trim();
+
+      mostrarMsg(
+        motivoRechazo
+          ? "Propuesta devuelta por Dirección Provincial. " +
+            "Observaciones DP: " +
+            motivoRechazo +
+            " Corrige lo indicado y pulsa «Enviar a validación»."
+          : "Propuesta devuelta por Dirección Provincial. " +
+            "Corrige los datos necesarios y pulsa «Enviar a validación».",
+        true
+      );
+
+    } else {
+      mostrarMsg(
+        "Editando borrador de propuesta."
+      );
+    }
   }
 }
 
