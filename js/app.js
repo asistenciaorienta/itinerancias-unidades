@@ -160,7 +160,7 @@ async function obtenerPerfil() {
   } = await supabaseClient
     .from("usuarios_unidades")
     .select(
-      "usuario_id,unidad_id,principal,activo,unidades(id,nombre,municipio,direccion,cif,origen_interno_id,expediente_id,expediente,codigo_expediente,entidad_expediente,convocatoria_id)"
+      "usuario_id,unidad_id,principal,activo,unidades(id,nombre,municipio,direccion,telefono,cif,colectivo,origen_interno_id,expediente_id,expediente,codigo_expediente,entidad_expediente,convocatoria_id)"
     )
     .eq("usuario_id", user.id)
     .eq("activo", true);
@@ -213,7 +213,7 @@ async function obtenerPerfil() {
     } = await supabaseClient
       .from("unidades")
       .select(
-        "id,nombre,municipio,direccion,cif,origen_interno_id,expediente_id,expediente,codigo_expediente,entidad_expediente,convocatoria_id"
+        "id,nombre,municipio,direccion,telefono,cif,colectivo,origen_interno_id,expediente_id,expediente,codigo_expediente,entidad_expediente,convocatoria_id"
       )
       .eq("id", data.unidad_id)
       .maybeSingle();
@@ -608,7 +608,7 @@ function renderItineranciasPublicadas(lista, unidadNombre) {
   cont.innerHTML = lista.map(i => `
     <article class="item">
       <div>
-        <h3>${escapeHtml(i.titulo || i.entidad || "Itinerancia")}</h3>
+        <h3>${escapeHtml(i.municipio || i.localidad || i.titulo || i.entidad || "Itinerancia")}</h3>
         <p class="muted">
           ${escapeHtml(i.municipio || "")}
           ${i.dias ? " · " + escapeHtml(i.dias) : ""}
@@ -650,7 +650,8 @@ function renderPropuestas(lista) {
   listaCont.innerHTML = lista.map(p => `
     <article class="item">
       <div>
-        <h3>${escapeHtml(p.titulo || "Sin título")}</h3>
+        <h3>${escapeHtml(p.municipio || p.localidad || p.titulo || "Sin título")}</h3>
+        <p class="muted">${escapeHtml(textoUnidadPanelV17B(perfilActual))}</p>
         <p class="muted">
           ${escapeHtml(p.tipo || "")} · ${escapeHtml(p.estado || "")}
         </p>
@@ -671,6 +672,150 @@ let itineranciaActividadActual = null;
 let itineranciaListadoActividadesActual = null;
 let actividadesActuales = [];
 let publicadasFormularioActuales = [];
+
+
+// === IDENTIDAD_SEDE_UNIDAD_V17B ===
+
+function normalizarDireccionPanelUnidadV17B(
+  valor
+) {
+
+  let s =
+    String(valor || "")
+      .trim()
+      .replace(/\s+/g, " ");
+
+
+  if (!s) {
+    return "";
+  }
+
+
+  const n =
+    s
+      .toLocaleUpperCase("es")
+      .normalize("NFD")
+      .replace(
+        /[\u0300-\u036f]/g,
+        ""
+      );
+
+
+  if (
+    n === "CR DE MALAGA 43" ||
+    n === "CTRA. DE MALAGA 43"
+  ) {
+
+    return "Ctra. de Málaga, 43";
+  }
+
+
+  if (
+    n === "CL DELFIN 5" ||
+    n === "C/ DELFIN 5"
+  ) {
+
+    return "C/ Delfín, 5";
+  }
+
+
+  s = s
+    .replace(/^CL\s+/i, "C/ ")
+    .replace(/^CR\s+/i, "Ctra. ")
+    .replace(/^AV\s+/i, "Av. ")
+    .replace(/^CM\s+/i, "Camino ")
+    .replace(/^PZ\s+/i, "Plaza ")
+    .replace(/^PS\s+/i, "Paseo ");
+
+
+  s = s
+    .replace(/^Ctra\.\s+DE\s+/i, "Ctra. de ")
+    .replace(/^Av\.\s+DE\s+/i, "Av. de ");
+
+
+  s = s.replace(
+    /\s+(\d+[A-Za-z]?)$/,
+    ", $1"
+  );
+
+
+  return s;
+}
+
+
+function textoUnidadPanelV17B(
+  perfil = perfilActual
+) {
+
+  const u =
+    perfil?.unidades ||
+    {};
+
+
+  const nombre =
+    String(
+      u?.nombre ||
+      "Unidad sin asignar"
+    ).trim();
+
+
+  const sede =
+    normalizarDireccionPanelUnidadV17B(
+      u?.direccion ||
+      ""
+    );
+
+
+  const colectivo =
+    String(
+      u?.colectivo ||
+      ""
+    ).trim();
+
+
+  if (!sede) {
+    return nombre;
+  }
+
+
+  if (
+    nombre
+      .toLocaleUpperCase("es")
+      .includes(
+        sede.toLocaleUpperCase("es")
+      )
+  ) {
+
+    return nombre;
+  }
+
+
+  if (colectivo) {
+
+    const sufijo =
+      ` · ${colectivo}`;
+
+
+    if (
+      nombre.endsWith(sufijo)
+    ) {
+
+      const base =
+        nombre.slice(
+          0,
+          -sufijo.length
+        );
+
+
+      return (
+        `${base} · ${sede}${sufijo}`
+      );
+    }
+  }
+
+
+  return `${nombre} · ${sede}`;
+}
 
 
 function estadoEtiquetaClase(estado) {
@@ -953,7 +1098,7 @@ function renderPanelUnificado() {
 
   cont.innerHTML = items.map(item => {
     const d = item.data || {};
-    const titulo = d.titulo || d.entidad || "Itinerancia";
+    const titulo = d.municipio || d.localidad || d.titulo || d.entidad || "Itinerancia";
     const municipio = d.municipio || "";
     const dias = d.dias || d.horario || "";
     const tecnico = d.tecnico_orienta || d.contacto || "";
@@ -972,8 +1117,15 @@ function renderPanelUnificado() {
           </div>
 
           <p class="muted">
+            ${escapeHtml(
+              textoUnidadPanelV17B(
+                perfilActual
+              )
+            )}
+          </p>
+
+          <p class="muted">
             ${escapeHtml(item.tipoListado === "PROPUESTA" ? tipoPropuestaLegible(d.tipo) : item.tipoListado)}
-            ${municipio ? " · " + escapeHtml(municipio) : ""}
             ${dias ? " · " + escapeHtml(dias) : ""}
           </p>
 
@@ -984,7 +1136,6 @@ function renderPanelUnificado() {
 
           <p class="muted">
             ${escapeHtml(tecnico)}
-            ${d.colectivo ? " · " + escapeHtml(d.colectivo) : ""}
           </p>
 
           ${avisoAtenciones}
@@ -1310,16 +1461,19 @@ function mostrarModalRechazadasUnidad() {
               <div>
                 <h3>
                   ${escapeHtml(
-                    p.titulo ||
                     p.municipio ||
+                    p.localidad ||
+                    p.titulo ||
                     "Propuesta"
                   )}
                 </h3>
 
                 <p class="muted">
-                  ${p.municipio
-                    ? escapeHtml(p.municipio)
-                    : ""}
+                  ${escapeHtml(
+                    textoUnidadPanelV17B(
+                      perfilActual
+                    )
+                  )}
                   ${fecha
                     ? " · Devuelta el " +
                       escapeHtml(fecha)
@@ -1380,7 +1534,7 @@ async function cargarPanel() {
   if (perfil.debe_cambiar_clave === true) {
     const info = $("usuarioInfo");
     if (info) {
-      const unidadNombre = perfil.unidades?.nombre || "Unidad sin asignar";
+      const unidadNombre = textoUnidadPanelV17B(perfil);
       info.textContent = `${perfil.nombre || perfil.email} · ${unidadNombre} · Cambio de clave pendiente`;
     }
 
@@ -1397,7 +1551,7 @@ async function cargarPanel() {
     return;
   }
 
-  const unidadNombre = perfil.unidades?.nombre || "Unidad sin asignar";
+  const unidadNombre = textoUnidadPanelV17B(perfil);
 
   const info = $("usuarioInfo");
   if (info) {
@@ -1801,6 +1955,804 @@ function prepararSelectorUnidadResponsableEdicion(
 // === FIN_UNIDAD_RESPONSABLE_EDICION_MULTI_V1 ===
 
 
+// === DECIDIR_NUEVA_O_MODIFICAR_V1 ===
+
+function normalizarUbicacionPropuestaV1(valor) {
+  return String(valor ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
+async function buscarCoincidenciasUbicacionNuevaV1(
+  payload,
+  unidadResponsableId,
+  convocatoriaId
+) {
+
+  const n =
+    normalizarUbicacionPropuestaV1;
+
+  const municipio =
+    n(payload?.municipio);
+
+  const direccion =
+    n(payload?.direccion);
+
+  if (
+    !unidadResponsableId ||
+    !convocatoriaId ||
+    !municipio ||
+    !direccion
+  ) {
+    return {
+      publicadas: [],
+      propuestas: []
+    };
+  }
+
+
+  /*
+    PUBLICADAS:
+    preferimos identificar la unidad mediante
+    unidad_origen_interno_id.
+  */
+  let queryPublicadas =
+    supabaseClient
+      .from("itinerancias_publicadas")
+      .select(
+        "id,titulo,entidad,unidad_nombre," +
+        "unidad_origen_interno_id,municipio,direccion," +
+        "dias,horario,frecuencia,fecha_inicio,fecha_fin," +
+        "contacto,tecnico_orienta,telefono,email," +
+        "observaciones_publicas,descripcion," +
+        "activa,borrada_admin,despublicada_admin"
+      )
+      .eq(
+        "convocatoria_id",
+        convocatoriaId
+      )
+      .eq(
+        "activa",
+        true
+      );
+
+  const origenInterno =
+    String(
+      payload?.unidad_origen_interno_id ??
+      ""
+    ).trim();
+
+  if (origenInterno) {
+    queryPublicadas =
+      queryPublicadas.eq(
+        "unidad_origen_interno_id",
+        origenInterno
+      );
+  }
+
+  const {
+    data: datosPublicadas,
+    error: errorPublicadas
+  } = await queryPublicadas;
+
+  if (errorPublicadas) {
+    throw errorPublicadas;
+  }
+
+  let publicadas =
+    (datosPublicadas || []).filter(
+      x =>
+        x.activa !== false &&
+        x.borrada_admin !== true &&
+        x.despublicada_admin !== true
+    );
+
+  /*
+    Compatibilidad si una publicación antigua
+    carece de unidad_origen_interno_id.
+  */
+  if (!origenInterno) {
+
+    const unidadNombre =
+      n(
+        payload?.unidad_nombre ||
+        payload?.entidad
+      );
+
+    if (unidadNombre) {
+      publicadas =
+        publicadas.filter(
+          x =>
+            n(
+              x.unidad_nombre ||
+              x.entidad
+            ) === unidadNombre
+        );
+    }
+  }
+
+  publicadas =
+    publicadas.filter(
+      x =>
+        n(x.municipio) === municipio &&
+        n(x.direccion) === direccion
+    );
+
+
+  /*
+    PROPUESTAS:
+    misma unidad exacta, municipio y dirección.
+  */
+  const {
+    data: datosPropuestas,
+    error: errorPropuestas
+  } =
+    await supabaseClient
+      .from("itinerancias_propuestas")
+      .select(
+        "id,tipo,estado,titulo,municipio,direccion," +
+        "horario,frecuencia,fecha_inicio,fecha_fin," +
+        "itinerancia_publicada_id,created_at"
+      )
+      .eq(
+        "convocatoria_id",
+        convocatoriaId
+      )
+      .eq(
+        "unidad_id",
+        unidadResponsableId
+      )
+      .order(
+        "created_at",
+        { ascending: false }
+      );
+
+  if (errorPropuestas) {
+    throw errorPropuestas;
+  }
+
+  const propuestaActualId =
+    String(
+      obtenerIdPropuestaEdicion() ||
+      ""
+    );
+
+  const estadosIgnorados =
+    new Set([
+      "ARCHIVADA",
+      "PUBLICADA"
+    ]);
+
+  const propuestas =
+    (datosPropuestas || []).filter(
+      x =>
+        String(x.id) !== propuestaActualId &&
+        !estadosIgnorados.has(
+          String(
+            x.estado || ""
+          ).toUpperCase()
+        ) &&
+        n(x.municipio) === municipio &&
+        n(x.direccion) === direccion
+    );
+
+  return {
+    publicadas,
+    propuestas
+  };
+}
+
+
+function resumenPublicadaCoincidenteV1(p) {
+
+  return [
+    p?.municipio,
+    p?.direccion,
+    p?.dias || p?.horario,
+    p?.frecuencia
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+
+function resumenPropuestaCoincidenteV1(p) {
+
+  return [
+    p?.municipio,
+    p?.direccion,
+    p?.horario,
+    p?.frecuencia
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+
+async function crearModificacionDesdeCoincidenciaV1(
+  original,
+  perfil,
+  convocatoria,
+  unidadResponsableId
+) {
+
+  /*
+    Antes de crear otro borrador de modificación,
+    comprobamos si ya existe uno vinculado
+    a esta publicación.
+  */
+  const {
+    data: existentes,
+    error: errorExistentes
+  } =
+    await supabaseClient
+      .from("itinerancias_propuestas")
+      .select(
+        "id,estado,tipo,itinerancia_publicada_id,created_at"
+      )
+      .eq(
+        "convocatoria_id",
+        convocatoria.id
+      )
+      .eq(
+        "unidad_id",
+        unidadResponsableId
+      )
+      .eq(
+        "itinerancia_publicada_id",
+        original.id
+      )
+      .eq(
+        "tipo",
+        "MODIFICACION"
+      )
+      .in(
+        "estado",
+        [
+          "BORRADOR",
+          "RECHAZADA",
+          "PENDIENTE_VALIDACION",
+          "VALIDADA"
+        ]
+      )
+      .order(
+        "created_at",
+        { ascending: false }
+      );
+
+  if (errorExistentes) {
+    throw errorExistentes;
+  }
+
+  if (existentes?.[0]?.id) {
+
+    window.location.href =
+      `nueva-itinerancia.html?id=${encodeURIComponent(existentes[0].id)}`;
+
+    return;
+  }
+
+
+  const payload = {
+    tipo: "MODIFICACION",
+    estado: "BORRADOR",
+
+    titulo:
+      original.titulo ||
+      original.entidad ||
+      "Modificación de itinerancia",
+
+    descripcion:
+      original.descripcion ||
+      null,
+
+    municipio:
+      original.municipio ||
+      null,
+
+    direccion:
+      original.direccion ||
+      null,
+
+    horario:
+      original.horario ||
+      original.dias ||
+      null,
+
+    frecuencia:
+      original.frecuencia ||
+      null,
+
+    fecha_inicio:
+      original.fecha_inicio ||
+      null,
+
+    fecha_fin:
+      original.fecha_fin ||
+      null,
+
+    contacto:
+      original.contacto ||
+      original.tecnico_orienta ||
+      null,
+
+    telefono:
+      original.telefono ||
+      null,
+
+    email:
+      original.email ||
+      null,
+
+    observaciones_publicas:
+      original.observaciones_publicas ||
+      null,
+
+    observaciones_unidad:
+      "Propuesta creada a partir de una itinerancia publicada para solicitar modificación.",
+
+    unidad_id:
+      unidadResponsableId,
+
+    creada_por:
+      perfil.id,
+
+    convocatoria_id:
+      convocatoria.id,
+
+    itinerancia_publicada_id:
+      original.id
+  };
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("itinerancias_propuestas")
+      .insert(payload)
+      .select("id")
+      .single();
+
+  if (error) {
+    throw error;
+  }
+
+  window.location.href =
+    `nueva-itinerancia.html?propuesta=${encodeURIComponent(data.id)}`;
+}
+
+
+async function confirmarNuevaConCoincidenciasV1(
+  payload,
+  perfil,
+  convocatoria,
+  unidadResponsableId
+) {
+
+  const {
+    publicadas,
+    propuestas
+  } =
+    await buscarCoincidenciasUbicacionNuevaV1(
+      payload,
+      unidadResponsableId,
+      convocatoria.id
+    );
+
+
+  /*
+    1. Prioridad: ya existe PUBLICADA.
+  */
+  if (publicadas.length) {
+
+    const existente =
+      publicadas[0];
+
+    const detalle =
+      resumenPublicadaCoincidenteV1(
+        existente
+      );
+
+    const modificar =
+      confirm(
+        "Ya existe una itinerancia PUBLICADA de esta unidad " +
+        "en el mismo municipio y dirección.\n\n" +
+        detalle +
+        "\n\n" +
+        (
+          publicadas.length > 1
+            ? `Además hay ${publicadas.length} itinerancias publicadas en esta misma ubicación.\n\n`
+            : ""
+        ) +
+        "¿Quieres MODIFICAR una itinerancia ya publicada?\n\n" +
+        "ACEPTAR = modificar la existente\n" +
+        "CANCELAR = valorar crear una nueva distinta"
+      );
+
+    if (modificar) {
+
+      await crearModificacionDesdeCoincidenciaV1(
+        existente,
+        perfil,
+        convocatoria,
+        unidadResponsableId
+      );
+
+      return false;
+    }
+
+
+    const nuevaReal =
+      confirm(
+        "¿Confirmas que quieres crear una NUEVA itinerancia " +
+        "distinta en esta misma ubicación?\n\n" +
+        "Úsalo solo si realmente deben existir dos itinerancias " +
+        "diferentes de la misma unidad en este municipio y dirección.\n\n" +
+        "ACEPTAR = sí, crear otra distinta\n" +
+        "CANCELAR = no enviar"
+      );
+
+    return nuevaReal;
+  }
+
+
+  /*
+    2. No hay publicada, pero sí propuesta existente.
+  */
+  if (propuestas.length) {
+
+    const prioridad = {
+      PENDIENTE_VALIDACION: 1,
+      VALIDADA: 2,
+      BORRADOR: 3,
+      RECHAZADA: 4
+    };
+
+    const ordenadas =
+      propuestas
+        .slice()
+        .sort(
+          (a, b) =>
+            (
+              prioridad[
+                String(a.estado || "").toUpperCase()
+              ] || 99
+            ) -
+            (
+              prioridad[
+                String(b.estado || "").toUpperCase()
+              ] || 99
+            )
+        );
+
+    const existente =
+      ordenadas[0];
+
+    const estado =
+      String(
+        existente.estado || ""
+      ).toUpperCase();
+
+    const detalle =
+      resumenPropuestaCoincidenteV1(
+        existente
+      );
+
+    const abrir =
+      confirm(
+        "Ya existe una PROPUESTA de esta unidad " +
+        "para el mismo municipio y dirección.\n\n" +
+        `Estado: ${estado}\n` +
+        detalle +
+        "\n\n" +
+        (
+          propuestas.length > 1
+            ? `Se han encontrado ${propuestas.length} propuestas en esta misma ubicación.\n\n`
+            : ""
+        ) +
+        "¿Quieres abrir la propuesta existente?\n\n" +
+        "ACEPTAR = abrir la existente\n" +
+        "CANCELAR = valorar crear otra nueva distinta"
+      );
+
+    if (abrir) {
+
+      window.location.href =
+        `nueva-itinerancia.html?id=${encodeURIComponent(existente.id)}`;
+
+      return false;
+    }
+
+
+    const nuevaReal =
+      confirm(
+        "¿Confirmas que se trata realmente de una NUEVA " +
+        "itinerancia distinta en la misma ubicación?\n\n" +
+        "ACEPTAR = crear otra distinta\n" +
+        "CANCELAR = no enviar"
+      );
+
+    return nuevaReal;
+  }
+
+
+  /*
+    No existe coincidencia.
+  */
+  return true;
+}
+
+// === FIN_DECIDIR_NUEVA_O_MODIFICAR_V1 ===
+
+
+// === CAMPOS_OBLIGATORIOS_PROPUESTA_V2 ===
+
+function aplicarCamposObligatoriosPropuestaV2() {
+
+  /*
+    Todos los campos de contenido son obligatorios.
+    Solo las dos observaciones permanecen opcionales.
+  */
+  const obligatorios = [
+    "municipio",
+    "direccion",
+    "horario",
+    "frecuencia",
+    "fechaInicio",
+    "fechaFin",
+    "contacto",
+    "telefono",
+    "emailContacto"
+  ];
+
+  for (const id of obligatorios) {
+
+    const el =
+      document.getElementById(id);
+
+    if (el) {
+      el.required = true;
+      el.setAttribute(
+        "aria-required",
+        "true"
+      );
+    }
+  }
+
+
+  const opcionales = [
+    "observacionesPublicas",
+    "observacionesUnidad"
+  ];
+
+  for (const id of opcionales) {
+
+    const el =
+      document.getElementById(id);
+
+    if (el) {
+      el.required = false;
+      el.removeAttribute(
+        "aria-required"
+      );
+    }
+  }
+}
+
+
+function validarCamposObligatoriosPropuestaV2(
+  payload
+) {
+
+  aplicarCamposObligatoriosPropuestaV2();
+
+
+  const campos = [
+
+    [
+      "municipio",
+      "Municipio"
+    ],
+
+    [
+      "direccion",
+      "Dirección"
+    ],
+
+    [
+      "horario",
+      "Día/Días"
+    ],
+
+    [
+      "frecuencia",
+      "Frecuencia"
+    ],
+
+    [
+      "fecha_inicio",
+      "Fecha de inicio"
+    ],
+
+    [
+      "fecha_fin",
+      "Fecha de fin"
+    ],
+
+    [
+      "contacto",
+      "Persona/Contacto"
+    ],
+
+    [
+      "telefono",
+      "Teléfono"
+    ],
+
+    [
+      "email",
+      "Correo electrónico"
+    ]
+  ];
+
+
+  const faltan =
+    campos.filter(
+      ([campo]) =>
+        !String(
+          payload?.[campo] ?? ""
+        ).trim()
+    );
+
+
+  if (faltan.length) {
+
+    const nombres =
+      faltan
+        .map(
+          ([, nombre]) =>
+            nombre
+        )
+        .join(", ");
+
+
+    mostrarMsg(
+      "Debes completar todos los campos obligatorios. " +
+      "Falta: " +
+      nombres +
+      ". Las observaciones son los únicos campos opcionales.",
+      true
+    );
+
+
+    /*
+      Colocamos el foco en el primer campo vacío.
+    */
+    const idsPorCampo = {
+
+      municipio:
+        "municipio",
+
+      direccion:
+        "direccion",
+
+      horario:
+        "horario",
+
+      frecuencia:
+        "frecuencia",
+
+      fecha_inicio:
+        "fechaInicio",
+
+      fecha_fin:
+        "fechaFin",
+
+      contacto:
+        "contacto",
+
+      telefono:
+        "telefono",
+
+      email:
+        "emailContacto"
+    };
+
+
+    const primerCampo =
+      faltan[0]?.[0];
+
+
+    const el =
+      document.getElementById(
+        idsPorCampo[
+          primerCampo
+        ] || ""
+      );
+
+
+    if (el) {
+
+      try {
+        el.focus();
+      } catch (_) {}
+    }
+
+
+    return false;
+  }
+
+
+  /*
+    Comprobación sencilla del correo.
+  */
+  const email =
+    String(
+      payload.email || ""
+    ).trim();
+
+
+  if (
+    email &&
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email
+    )
+  ) {
+
+    mostrarMsg(
+      "El correo electrónico no tiene un formato válido.",
+      true
+    );
+
+
+    document.getElementById(
+      "emailContacto"
+    )?.focus();
+
+
+    return false;
+  }
+
+
+  return true;
+}
+
+
+/*
+  También reflejamos visualmente en el propio
+  formulario qué controles son obligatorios.
+*/
+function inicializarObligatoriosPropuestaV2() {
+
+  aplicarCamposObligatoriosPropuestaV2();
+}
+
+
+if (
+  document.readyState ===
+  "loading"
+) {
+
+  document.addEventListener(
+    "DOMContentLoaded",
+    inicializarObligatoriosPropuestaV2
+  );
+
+} else {
+
+  inicializarObligatoriosPropuestaV2();
+}
+
+// === FIN_CAMPOS_OBLIGATORIOS_PROPUESTA_V2 ===
+
+
 async function guardarPropuesta(estado) {
   const perfil = await obtenerPerfil();
   if (!perfil) return;
@@ -1822,18 +2774,11 @@ async function guardarPropuesta(estado) {
     return;
   }
 
-  if (!payload.municipio) {
-    mostrarMsg("El municipio es obligatorio.", true);
-    return;
-  }
-
-  if (!payload.horario) {
-    mostrarMsg("El campo Día/Días es obligatorio.", true);
-    return;
-  }
-
-  if (!payload.frecuencia) {
-    mostrarMsg("La frecuencia es obligatoria.", true);
+  if (
+    !validarCamposObligatoriosPropuestaV2(
+      payload
+    )
+  ) {
     return;
   }
 
@@ -1894,6 +2839,47 @@ async function guardarPropuesta(estado) {
 
   payload.creada_por = perfil.id;
   payload.convocatoria_id = convocatoria.id;
+
+  // === COMPROBAR_NUEVA_UBICACION_V1 ===
+  if (
+    estado === "PENDIENTE_VALIDACION" &&
+    String(
+      payload.tipo || "NUEVA"
+    ).toUpperCase() === "NUEVA"
+  ) {
+
+    try {
+
+      const continuar =
+        await confirmarNuevaConCoincidenciasV1(
+          payload,
+          perfil,
+          convocatoria,
+          unidadResponsableId
+        );
+
+      if (!continuar) {
+        return;
+      }
+
+    } catch (err) {
+
+      console.error(
+        "Error comprobando propuestas/itinerancias existentes:",
+        err
+      );
+
+      mostrarMsg(
+        "No se ha podido comprobar si ya existe una itinerancia " +
+        "o propuesta en esta ubicación. " +
+        "Por seguridad no se ha enviado la propuesta.",
+        true
+      );
+
+      return;
+    }
+  }
+  // === FIN_COMPROBAR_NUEVA_UBICACION_V1 ===
 
   if (estado === "PENDIENTE_VALIDACION") {
     payload.enviada_at = new Date().toISOString();
@@ -4070,9 +5056,10 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
 // === FIN_CAMBIO_CLAVE_OBLIGATORIO_V1 ===
 
 
-// === SELECTOR_UNIDAD_TRABAJO_V2 ===
+// === SELECTOR_UNIDAD_TRABAJO_V3 ===
 (() => {
-  function textoUnidadTrabajoV2(unidad) {
+
+  function textoUnidadTrabajoV3(unidad) {
     return [
       unidad?.nombre,
       unidad?.municipio
@@ -4081,10 +5068,43 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
       .join(" · ");
   }
 
-  function instalarEstilosUnidadTrabajoV2() {
+  function detalleUnidadTrabajoV3(unidad) {
+    const partes = [];
+
+    if (unidad?.direccion) {
+      partes.push(`
+        <span>
+          <strong>Dirección:</strong>
+          ${escapeHtml(unidad.direccion)}
+        </span>
+      `);
+    }
+
+    if (unidad?.telefono) {
+      partes.push(`
+        <span>
+          <strong>Teléfono:</strong>
+          ${escapeHtml(unidad.telefono)}
+        </span>
+      `);
+    }
+
+    if (!partes.length) {
+      return "";
+    }
+
+    return `
+      <div class="detalle-unidad-trabajo-v3">
+        ${partes.join("")}
+      </div>
+    `;
+  }
+
+  function instalarEstilosUnidadTrabajoV3() {
+
     if (
       document.getElementById(
-        "estilosSelectorUnidadTrabajoV2"
+        "estilosSelectorUnidadTrabajoV3"
       )
     ) {
       return;
@@ -4094,12 +5114,14 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
       document.createElement("style");
 
     style.id =
-      "estilosSelectorUnidadTrabajoV2";
+      "estilosSelectorUnidadTrabajoV3";
 
     style.textContent = `
-      .selector-unidad-trabajo-v2 {
+      .selector-unidad-trabajo-v3 {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(320px, 48%);
+        grid-template-columns:
+          minmax(0, 1fr)
+          minmax(320px, 48%);
         gap: 18px;
         align-items: center;
         margin: 14px 0 18px;
@@ -4109,29 +5131,48 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
         background: #f7f9fa;
       }
 
-      .selector-unidad-trabajo-v2 strong {
+      .selector-unidad-trabajo-v3 strong {
         display: block;
         margin-bottom: 4px;
       }
 
-      .selector-unidad-trabajo-v2 .descripcion {
+      .selector-unidad-trabajo-v3 .descripcion {
         display: block;
         font-size: .9rem;
         opacity: .75;
       }
 
-      .selector-unidad-trabajo-v2 label {
+      .selector-unidad-trabajo-v3 label {
         display: block;
         margin-bottom: 5px;
         font-weight: 600;
       }
 
-      .selector-unidad-trabajo-v2 select {
+      .selector-unidad-trabajo-v3 select {
         width: 100%;
       }
 
+      .unidad-trabajo-nombre-v3 {
+        font-weight: 600;
+        line-height: 1.35;
+      }
+
+      .detalle-unidad-trabajo-v3 {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        margin-top: 8px;
+        font-size: .9rem;
+        line-height: 1.4;
+      }
+
+      .detalle-unidad-trabajo-v3 strong {
+        display: inline;
+        margin: 0;
+      }
+
       @media (max-width: 760px) {
-        .selector-unidad-trabajo-v2 {
+        .selector-unidad-trabajo-v3 {
           grid-template-columns: 1fr;
         }
       }
@@ -4140,7 +5181,8 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
     document.head.appendChild(style);
   }
 
-  function instalarSelectorUnidadTrabajoV2() {
+  function instalarSelectorUnidadTrabajoV3() {
+
     const perfil =
       typeof perfilActual !== "undefined"
         ? perfilActual
@@ -4150,7 +5192,7 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
       return;
     }
 
-    const unidades =
+    let unidades =
       Array.isArray(
         perfil.unidades_asignadas
       )
@@ -4159,33 +5201,47 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
           )
         : [];
 
+    /*
+      Compatibilidad con usuarios antiguos
+      que todavía no tengan relación explícita
+      en usuarios_unidades.
+    */
+    if (
+      !unidades.length &&
+      perfil.unidades
+    ) {
+      unidades = [{
+        ...(perfil.unidades || {}),
+        unidad_id:
+          perfil.unidad_id ||
+          perfil.unidades?.id ||
+          null,
+        principal: true,
+        activo: true
+      }];
+    }
+
     const existente =
       document.getElementById(
         "selectorUnidadTrabajoBloqueV2"
+      ) ||
+      document.getElementById(
+        "selectorUnidadTrabajoBloqueV3"
       );
 
-    /*
-      Usuario de una única unidad:
-      funcionamiento tradicional.
-    */
-    if (unidades.length <= 1) {
+    if (!unidades.length) {
       existente?.remove();
       return;
     }
 
-    instalarEstilosUnidadTrabajoV2();
+    instalarEstilosUnidadTrabajoV3();
 
     let bloque = existente;
 
     if (!bloque) {
+
       bloque =
         document.createElement("div");
-
-      bloque.id =
-        "selectorUnidadTrabajoBloqueV2";
-
-      bloque.className =
-        "selector-unidad-trabajo-v2";
 
       const cabecera =
         document.querySelector(
@@ -4205,54 +5261,102 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
       );
     }
 
+    bloque.id =
+      "selectorUnidadTrabajoBloqueV3";
+
+    bloque.className =
+      "selector-unidad-trabajo-v3";
+
+    const unidadSeleccionada =
+      unidades.find(
+        u =>
+          String(u.unidad_id) ===
+          String(perfil.unidad_id)
+      ) ||
+      unidades[0] ||
+      null;
+
+    const esMultiunidad =
+      unidades.length > 1;
+
     bloque.innerHTML = `
       <div>
-        <strong>Gestión multiunidad</strong>
+        <strong>
+          ${
+            esMultiunidad
+              ? "Gestión multiunidad"
+              : "Unidad de trabajo"
+          }
+        </strong>
 
         <span class="descripcion">
-          Las itinerancias, propuestas y atenciones
-          corresponden a la unidad de trabajo seleccionada.
+          ${
+            esMultiunidad
+              ? `Las itinerancias, propuestas y atenciones
+                 corresponden a la unidad de trabajo seleccionada.`
+              : `Las itinerancias, propuestas y atenciones
+                 corresponden a esta unidad.`
+          }
         </span>
       </div>
 
       <div>
-        <label for="selectorUnidadTrabajoV2">
-          Unidad de trabajo
-        </label>
+        ${
+          esMultiunidad
+            ? `
+              <label for="selectorUnidadTrabajoV3">
+                Unidad de trabajo
+              </label>
 
-        <select id="selectorUnidadTrabajoV2">
-          ${unidades.map(u => `
-            <option
-              value="${escapeHtml(u.unidad_id)}"
-              ${
-                String(u.unidad_id) ===
-                String(perfil.unidad_id)
-                  ? "selected"
-                  : ""
-              }
-            >
-              ${escapeHtml(
-                textoUnidadTrabajoV2(u)
-              )}
-              ${
-                u.principal === true
-                  ? " · Principal"
-                  : ""
-              }
-            </option>
-          `).join("")}
-        </select>
+              <select id="selectorUnidadTrabajoV3">
+                ${unidades.map(u => `
+                  <option
+                    value="${escapeHtml(u.unidad_id)}"
+                    ${
+                      String(u.unidad_id) ===
+                      String(perfil.unidad_id)
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ${escapeHtml(
+                      textoUnidadTrabajoV3(u)
+                    )}
+                    ${
+                      u.principal === true
+                        ? " · Principal"
+                        : ""
+                    }
+                  </option>
+                `).join("")}
+              </select>
+            `
+            : `
+              <div class="unidad-trabajo-nombre-v3">
+                ${escapeHtml(
+                  textoUnidadTrabajoV3(
+                    unidadSeleccionada
+                  )
+                )}
+              </div>
+            `
+        }
+
+        ${detalleUnidadTrabajoV3(
+          unidadSeleccionada
+        )}
       </div>
     `;
 
     const selector =
       document.getElementById(
-        "selectorUnidadTrabajoV2"
+        "selectorUnidadTrabajoV3"
       );
 
     selector?.addEventListener(
       "change",
       () => {
+
         const nuevaUnidadId =
           String(
             selector.value || ""
@@ -4266,6 +5370,7 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
           );
 
         if (!autorizada) {
+
           selector.value =
             perfil.unidad_id || "";
 
@@ -4283,9 +5388,10 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
         );
 
         /*
-          Recarga completa deliberada:
-          de este modo TODAS las funciones existentes
-          vuelven a cargar datos con el nuevo unidad_id.
+          Mantenemos el comportamiento actual:
+          recarga completa para que propuestas,
+          itinerancias y atenciones correspondan
+          a la nueva unidad.
         */
         window.location.reload();
       }
@@ -4293,31 +5399,32 @@ document.addEventListener("DOMContentLoaded", instalarCambioClaveObligatorio);
   }
 
   /*
-    No modificamos el cuerpo de cargarPanel().
-    Solo lo envolvemos para colocar el selector
-    después de que termine su carga habitual.
+    Envolvemos cargarPanel igual que hacía V2.
   */
   if (
     typeof cargarPanel === "function"
   ) {
-    const cargarPanelOriginalV2 =
+
+    const cargarPanelOriginalV3 =
       cargarPanel;
 
     cargarPanel =
       async function (...args) {
+
         const resultado =
-          await cargarPanelOriginalV2.apply(
+          await cargarPanelOriginalV3.apply(
             this,
             args
           );
 
-        instalarSelectorUnidadTrabajoV2();
+        instalarSelectorUnidadTrabajoV3();
 
         return resultado;
       };
   }
+
 })();
-// === FIN_SELECTOR_UNIDAD_TRABAJO_V2 ===
+// === FIN_SELECTOR_UNIDAD_TRABAJO_V3 ===
 
 // === MODO_ADMIN_IMPERSONACION_V1 ===
 (() => {
