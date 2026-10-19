@@ -1,6 +1,6 @@
 /* SAE Granada · Unidades · informe mensual GLOBAL de registro de atenciones.
  * Solo lectura sobre Supabase. Se limita a la unidad activa y convocatoria activa.
- * No precisa seleccionar una itinerancia y no altera js/app.js. 2026-10-19 · v2.
+ * No precisa seleccionar una itinerancia y no altera js/app.js. 2026-10-19 · v3 (diseño compacto).
  */
 (() => {
   'use strict';
@@ -29,14 +29,13 @@
     bloque.innerHTML = `
       <div class="informe-global-mensual__titulo">
         <strong>Informe mensual de atenciones · todas las itinerancias</strong>
-        <span>Resumen de personal técnico, municipios y atenciones de la unidad activa.</span>
       </div>
       <div class="informe-global-mensual__acciones">
-        <label for="mesInformeGlobal">Mes
+        <label for="mesInformeGlobal">Mes:
           <input type="month" id="mesInformeGlobal" required>
         </label>
         <button type="button" id="btnInformeGlobal" class="secundario">
-          <span id="textoBtnInformeGlobal">Descargar informe mensual (PDF)</span>
+          <span id="textoBtnInformeGlobal">Descargar PDF</span>
           <span id="spinnerInformeGlobal" class="informe-global-mensual__spinner" aria-hidden="true" hidden></span>
         </button>
       </div>
@@ -65,17 +64,22 @@
     const el = document.createElement('style');
     el.id = 'estiloInformeGlobal';
     el.textContent = `
-      .informe-global-mensual{border:1px solid #d2dee8;border-left:4px solid #236087;
-        padding:13px 16px;margin:14px 0 20px;background:#f8fbfd;border-radius:7px;}
-      .informe-global-mensual__titulo{display:flex;flex-direction:column;gap:3px;margin-bottom:10px;}
-      .informe-global-mensual__titulo strong{font-size:1rem;color:#153e5a;}
-      .informe-global-mensual__titulo span{font-size:.88rem;color:#526171;}
-      .informe-global-mensual__acciones{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;}
-      .informe-global-mensual__acciones label{display:flex;flex-direction:column;gap:4px;font-weight:600;}
-      #mesInformeGlobal{min-height:38px;width:160px;}
-      #btnInformeGlobal{display:inline-flex;gap:9px;align-items:center;justify-content:center;min-height:40px;min-width:275px;}
+      .informe-global-mensual{display:flex;align-items:center;justify-content:space-between;
+        flex-wrap:wrap;gap:8px 14px;border:1px solid #d2dee8;border-left:4px solid #236087;
+        padding:9px 14px;margin:12px 0 16px;background:#f8fbfd;border-radius:7px;}
+      .informe-global-mensual__titulo{flex:1 1 310px;min-width:0;}
+      .informe-global-mensual__titulo strong{font-size:.96rem;color:#153e5a;}
+      .informe-global-mensual__acciones{display:flex;align-items:center;gap:10px;
+        flex-wrap:wrap;flex:0 1 auto;}
+      .informe-global-mensual__acciones label{display:inline-flex;align-items:center;
+        gap:7px;font-weight:600;white-space:nowrap;}
+      #mesInformeGlobal{min-height:36px;width:153px;box-sizing:border-box;}
+      #btnInformeGlobal{display:inline-flex;gap:8px;align-items:center;justify-content:center;
+        min-height:36px;min-width:140px;white-space:nowrap;}
       #btnInformeGlobal:disabled{opacity:.70;cursor:wait;}
-      #estadoInformeGlobal{margin:8px 0 0;font-size:.88rem;min-height:1.2em;}
+      #estadoInformeGlobal{flex:1 0 100%;margin:0;font-size:.88rem;}
+      #estadoInformeGlobal:empty{display:none;}
+      #estadoInformeGlobal:not(:empty){margin-top:2px;}
       #estadoInformeGlobal.error{color:#a12626;font-weight:600;}
       .informe-global-mensual__spinner{width:16px;height:16px;border-radius:50%;
         border:2px solid currentColor;border-right-color:transparent;
@@ -103,7 +107,7 @@
     boton.disabled = activo;
     mes.disabled = activo;
     boton.setAttribute('aria-busy', String(activo));
-    $('textoBtnInformeGlobal').textContent = activo ? 'Generando PDF…' : 'Descargar informe mensual (PDF)';
+    $('textoBtnInformeGlobal').textContent = activo ? 'Generando PDF…' : 'Descargar PDF';
     $('spinnerInformeGlobal').hidden = !activo;
   }
 
