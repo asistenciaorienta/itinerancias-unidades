@@ -5,14 +5,6 @@
   <title>Itinerancias de la Unidad</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="css/style.css?v=20260723-limpiar-aviso-cambio-clave">
-<style id="estilosInformeMensual">
-.acciones-informe-mensual { display:flex; align-items:flex-end; flex-wrap:wrap; gap:12px; margin:12px 0 18px; }
-.acciones-informe-mensual label { display:flex; flex-direction:column; gap:5px; font-weight:600; }
-.acciones-informe-mensual input { width:170px; }
-.acciones-informe-mensual button { min-width:225px; }
-#estadoInformeMensual { font-size:.88rem; line-height:1.35; }
-#estadoInformeMensual.error { color:#9a251f; font-weight:600; }
-</style>
 </head>
 <body>
   <main class="container panel-page">
@@ -79,15 +71,6 @@
       <div class="filtro-actividad-modal">
         <input type="text" id="filtroActividades" placeholder="Filtrar por fecha, técnico/a, tipo, observaciones...">
       </div>
-
-      <!-- INFORME_MENSUAL_ATENCIONES_V1 -->
-<div class="acciones-informe-mensual">
-  <label for="mesInformeMensual">Mes del informe
-    <input type="month" id="mesInformeMensual" required>
-  </label>
-  <button type="button" class="secundario" id="btnDescargarInformeMensual">Descargar informe mensual (PDF)</button>
-  <span id="estadoInformeMensual" aria-live="polite" role="status"></span>
-</div>
 <div id="contenidoListadoActividades" class="tabla-actividades-modal"></div>
     </div>
   </dialog>
@@ -208,6 +191,6 @@
 <!-- Librerías para generar y descargar el informe en PDF desde el navegador -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@4.2.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.8/dist/jspdf.plugin.autotable.min.js"></script>
-<script src="js/informe-mensual.js?v=20261019-v1"></script>
+<script src="js/informe-mensual.js?v=20261019-v2"></script>
 </body>
 </html>
