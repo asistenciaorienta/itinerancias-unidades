@@ -3021,15 +3021,111 @@ function renderListadoActividadesModal() {
         <span title="${escapeHtml(a.tipo_atencion || "")}">${escapeHtml(a.tipo_atencion || "-")}</span>
         <span>${escapeHtml(formatoTiempo(a.tiempo_total_minutos))}</span>
         <span title="${escapeHtml(a.observaciones || "")}">${escapeHtml(a.observaciones || "-")}</span>
-        <span>
-          <button class="btn mini secundario" onclick="abrirModalActividad('${escapeHtml(itineranciaListadoActividadesActual.id)}', '${escapeHtml(a.id)}')">
+        <span class="acciones-registro-actividad">
+          <button type="button" class="btn mini secundario" onclick="abrirModalActividad('${escapeHtml(itineranciaListadoActividadesActual.id)}', '${escapeHtml(a.id)}')">
             Editar
+          </button>
+          <button type="button" class="btn mini borrar-registro-actividad" onclick="eliminarActividadItinerancia('${escapeHtml(a.id)}')">
+            Eliminar
           </button>
         </span>
       </div>
     `).join("")}
   `;
 }
+
+// === BORRADO_ATENCIONES_UNIDAD_V2_20261028 ===
+let borradoActividadEnCurso = false;
+
+function mostrarResultadoBorradoActividad(texto, error = false) {
+  const aviso = $("msgEliminarActividad");
+  if (aviso) {
+    aviso.textContent = texto || "";
+    aviso.className = error ? "msg msg-modal error" : "msg msg-modal ok";
+  } else {
+    mostrarMsg(texto, error);
+  }
+}
+
+window.eliminarActividadItinerancia = async function eliminarActividadItinerancia(idActividad) {
+  if (borradoActividadEnCurso) return;
+  const registro = actividadesActuales.find(a => String(a.id) === String(idActividad));
+  const itinerancia = itineranciaListadoActividadesActual;
+  if (!registro || !itinerancia || !perfilActual?.id || !perfilActual?.unidad_id || !convocatoriaActual?.id ||
+      String(registro.itinerancia_publicada_id) !== String(itinerancia.id) ||
+      String(registro.unidad_id) !== String(perfilActual.unidad_id) ||
+      String(registro.convocatoria_id) !== String(convocatoriaActual.id) ||
+      !publicadasActuales.some(p => String(p.id) === String(itinerancia.id))) {
+    mostrarResultadoBorradoActividad("El registro no pertenece a la itinerancia o unidad activa.", true);
+    return;
+  }
+
+  const registrado = registro.created_at
+    ? new Date(registro.created_at).toLocaleString("es-ES")
+    : "No disponible";
+  const detalle = [
+    "¿Eliminar este registro de atenciones?",
+    "",
+    `Municipio: ${itinerancia.municipio || "-"}`,
+    `Fecha: ${fechaES(registro.fecha_actividad)}`,
+    `Técnico/a: ${registro.personal_tecnico || "-"}`,
+    `Nº de atenciones: ${registro.numero_atenciones ?? 0}`,
+    `Tipo: ${registro.tipo_atencion || "-"}`,
+    `Tiempo: ${formatoTiempo(registro.tiempo_total_minutos)}`,
+    `Creado el: ${registrado}`,
+    `ID: ${registro.id}`,
+    "",
+    "El registro dejará de contar en los informes y totales.",
+    "Comprueba el ID si hay dos registros del mismo día."
+  ].join("\n");
+  if (!window.confirm(detalle)) return;
+
+  borradoActividadEnCurso = true;
+  mostrarResultadoBorradoActividad("Eliminando el registro...");
+  try {
+    // Además de los filtros del navegador, Supabase debe imponer RLS DELETE.
+    const { data, error } = await supabaseClient
+      .from("actividad_itinerancias")
+      .delete()
+      .eq("id", registro.id)
+      .eq("unidad_id", perfilActual.unidad_id)
+      .eq("convocatoria_id", convocatoriaActual.id)
+      .eq("itinerancia_publicada_id", itinerancia.id)
+      .select("id");
+
+    if (error) throw error;
+    if (!Array.isArray(data) || data.length !== 1 || String(data[0].id) !== String(registro.id)) {
+      throw new Error("Supabase no ha confirmado la eliminación. Comprueba los permisos de borrado de la unidad (RLS).");
+    }
+
+    // Eliminación confirmada: refrescamos las dos vistas del panel.
+    // Borrado confirmado en Supabase: actualizar lista y panel.
+    actividadesActuales = actividadesActuales.filter(a => String(a.id) !== String(registro.id));
+    try {
+      renderListadoActividadesModal();
+      if (typeof cargarActividadResumenUnidad === "function" && Array.isArray(publicadasResumenUnidadBase)) {
+        await cargarActividadResumenUnidad(publicadasResumenUnidadBase);
+        if (typeof renderResumenAtencionesUnidad === "function") {
+          renderResumenAtencionesUnidad(publicadasResumenUnidadBase);
+        }
+        if (typeof renderAvisoSuperiorAtencionesUnidad === "function") {
+          renderAvisoSuperiorAtencionesUnidad();
+        }
+      }
+      renderPanelUnificado();
+      mostrarResultadoBorradoActividad("Registro eliminado correctamente. Listado y resumen actualizados.");
+    } catch (errResumen) {
+      console.error("Registro borrado, pero falló la actualización visual:", errResumen);
+      mostrarResultadoBorradoActividad("Registro eliminado correctamente en Supabase, pero no se ha actualizado el resumen. Recarga la página.", true);
+    }
+  } catch (err) {
+    console.error("Error al eliminar atenciones:", err);
+    mostrarResultadoBorradoActividad("No se ha podido eliminar el registro: " + (err.message || err), true);
+  } finally {
+    borradoActividadEnCurso = false;
+  }
+};
+// === FIN_BORRADO_ATENCIONES_UNIDAD_V2_20261028 ===
 
 window.abrirModalListadoActividades = function abrirModalListadoActividades(idPublicada) {
   const itinerancia = publicadasActuales.find(i => String(i.id) === String(idPublicada));

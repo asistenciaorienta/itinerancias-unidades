@@ -440,7 +440,7 @@ dialog#modalListadoActividades::backdrop {
 .actividad-tabla-cabecera,
 .actividad-tabla-row {
   display: grid;
-  grid-template-columns: 92px minmax(130px, 1.2fr) 70px minmax(130px, 1fr) 70px minmax(180px, 1.4fr) 78px;
+  grid-template-columns: 92px minmax(130px, 1.2fr) 70px minmax(130px, 1fr) 70px minmax(180px, 1.4fr) 158px;
   gap: .65rem;
   align-items: center;
 }
@@ -1235,3 +1235,20 @@ dialog#modalRechazadasUnidad::backdrop {
 }
 
 /* === FIN_AVISO_RECHAZADAS_UNIDAD_V1 === */
+
+/* === BORRADO_ATENCIONES_UNIDAD_V2_20261028 === */
+.tabla-actividades-modal { min-width: 1030px; }
+.actividad-tabla-row .acciones-registro-actividad {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .35rem;
+  overflow: visible;
+  white-space: normal;
+}
+.btn.borrar-registro-actividad {
+  background: #fff7f7;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+.btn.borrar-registro-actividad:hover { background: #fee2e2; }
+/* === FIN_BORRADO_ATENCIONES_UNIDAD_V2_20261028 === */
