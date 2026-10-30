@@ -2990,9 +2990,38 @@ function textoFiltroActividad(a) {
   ].join(" ").toLowerCase();
 }
 
+/* ITINERANCIAS_MODAL_PENDIENTES_V3
+ * Las fechas se calculan para esta itinerancia, sin depender del filtro del modal.
+ * Solo muestra omisiones que el motor V2 puede determinar.
+ */
+function avisoFechasPendientesModalV3(itinerancia) {
+  if (!itinerancia || typeof fechasQuincenalesPendientesV2 !== "function") return "";
+  const registros = actividadesDeItinerancia(itinerancia.id);
+  const fechas = registros.map(r => r.fecha_actividad).filter(Boolean);
+  const pendientes = fechasQuincenalesPendientesV2(itinerancia, fechas);
+  if (!pendientes.length) return "";
+
+  const lista = valores => `<ul style="display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:10px 0 0;padding:0">${valores.map(iso =>
+    `<li style="border:1px solid #d7a595;border-radius:6px;background:#fff;padding:5px 9px;font-weight:600">${escapeHtml(iso.slice(8,10) + "/" + iso.slice(5,7) + "/" + iso.slice(0,4))}</li>`
+  ).join("")}</ul>`;
+  const visibles = pendientes.slice(0, 8);
+  const adicionales = pendientes.slice(8);
+  const mas = adicionales.length
+    ? `<details style="margin-top:10px"><summary style="cursor:pointer">Ver las ${adicionales.length} fechas restantes</summary>${lista(adicionales)}</details>`
+    : "";
+
+  return `<section class="aviso-atenciones-item aviso-desactualizada" role="status"
+    style="display:block;margin:0 0 16px;padding:12px 14px;border:1px solid #d7a595;border-left:4px solid #ba4527;border-radius:8px;background:#fff6f2;color:#70301c">
+    <strong>Fechas programadas pendientes de registrar (${pendientes.length})</strong>
+    ${lista(visibles)}${mas}
+    <p style="margin:10px 0 0;font-size:.88em">Avisos de esta itinerancia quincenal; se calculan con todos sus registros, aunque se filtre el listado.</p>
+  </section>`;
+}
+
 function renderListadoActividadesModal() {
   const cont = $("contenidoListadoActividades");
   if (!cont || !itineranciaListadoActividadesActual) return;
+  const avisoPendientes = avisoFechasPendientesModalV3(itineranciaListadoActividadesActual);
 
   const filtro = String($("filtroActividades")?.value || "").trim().toLowerCase();
 
@@ -3003,11 +3032,12 @@ function renderListadoActividadesModal() {
   }
 
   if (!actividades.length) {
-    cont.innerHTML = `<p class="muted sin-resultados-actividad">No hay actividades que coincidan con el filtro.</p>`;
+    cont.innerHTML = avisoPendientes + `<p class="muted sin-resultados-actividad">No hay actividades que coincidan con el filtro.</p>`;
     return;
   }
 
   cont.innerHTML = `
+    ${avisoPendientes}
     <div class="actividad-tabla-cabecera">
       <span>Fecha</span>
       <span>Técnico/a</span>
