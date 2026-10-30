@@ -999,7 +999,11 @@ function textoAvisoAtencionesUnidad(item) {
 
   if (estado === "DESACTUALIZADAS") {
     const fecha = resumen?.ultimaFecha ? ` Última fecha: ${escapeHtml(resumen.ultimaFecha)}.` : "";
-    return `<p class="aviso-atenciones-item aviso-desactualizada">Atenciones desactualizadas.${fecha}</p>`;
+    const pendientes = fechasQuincenalesPendientesV2(d, resumen?.fechasActividad);
+    const texto = pendientes.length
+      ? `Fechas quincenales sin registro (${pendientes.length}): ${pendientes.slice(0, 8).map(x => escapeHtml(x.split("-").reverse().join("/"))).join(", ")}${pendientes.length > 8 ? ", ..." : ""}.`
+      : "Atenciones desactualizadas.";
+    return `<p class="aviso-atenciones-item aviso-desactualizada">${texto}${fecha}</p>`;
   }
 
   if (estado === "RECIENTES") {
@@ -3743,6 +3747,61 @@ function idPublicadaResumenUnidad(p) {
   return p?.id || p?.itinerancia_publicada_id || p?.publicada_id || "";
 }
 
+/*
+ * ITINERANCIAS_CONTROL_QUINCENAL_GITHUB_V2
+ * Avisos por fechas previstas. NO modifica atenciones ni Supabase.
+ * Fecha de inicio es ancla solo si coincide con el único día semanal programado.
+ * Si no hay ancla, se infiere el ciclo desde el primer registro de ese día,
+ * sin poder detectar incumplimientos anteriores a tal registro.
+ * No interpreta calendarios ordinales ni múltiples días.
+ */
+function fechasQuincenalesPendientesV2(publicada, fechasActividad, hoyPruebaISO = null) {
+  const normalizar = valor => String(valor || "")
+    .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const frecuencia = normalizar(publicada?.frecuencia);
+  if (!frecuencia.includes("quinc")) return [];
+  const horario = normalizar(publicada?.horario || publicada?.dias);
+  if (/(?:\b[1-5]\s*(?:er|o|a|º|ª)\b|\bprimer\b|\bsegund[oa]\b|\btercer\b|\bcuart[oa]\b|\bultim[oa]\b)/.test(horario)) return [];
+  const dias = horario.match(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/g) || [];
+  if (dias.length !== 1) return [];
+  const diaSemana = {domingo:0, lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6}[dias[0]];
+  const MS_DIA = 86400000;
+  const fechaValida = valor => {
+    const iso = String(valor || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+    const [a,m,d] = iso.split("-").map(Number);
+    const ms = Date.UTC(a,m-1,d);
+    return new Date(ms).toISOString().slice(0,10) === iso ? ms : null;
+  };
+  const fechaISO = ms => new Date(ms).toISOString().slice(0, 10);
+  const ahora = new Date();
+  const hoyLocal = `${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,"0")}-${String(ahora.getDate()).padStart(2,"0")}`;
+  const hoy = fechaValida(hoyPruebaISO || hoyLocal);
+  if (hoy === null) return [];
+  const inicio = fechaValida(publicada?.fecha_inicio);
+  const fin = fechaValida(publicada?.fecha_fin);
+  const registradas = new Set((Array.isArray(fechasActividad) ? fechasActividad : [])
+    .map(x => String(x || "").slice(0,10))
+    .filter(x => fechaValida(x) !== null));
+  const referenciaInicio = inicio !== null && new Date(inicio).getUTCDay() === diaSemana
+    ? inicio : null;
+  const primeraRegistrada = [...registradas].sort()
+    .map(iso => fechaValida(iso))
+    .find(ms => new Date(ms).getUTCDay() === diaSemana &&
+      (inicio === null || ms >= inicio) && (fin === null || ms <= fin));
+  const referencia = referenciaInicio ?? primeraRegistrada;
+  if (referencia === undefined || referencia === null) return [];
+  const faltas = [];
+  for (let fecha = referencia, pasos = 0;
+       fecha < hoy && (fin === null || fecha <= fin) && pasos < 2000;
+       fecha += 14*MS_DIA, pasos++) {
+    if (inicio !== null && fecha < inicio) continue;
+    const iso = fechaISO(fecha);
+    if (!registradas.has(iso)) faltas.push(iso);
+  }
+  return faltas;
+}
+
 function frecuenciaResumenUnidad(p) {
   return String(p?.frecuencia || p?.periodicidad || p?.dias || p?.horario || "").toLowerCase();
 }
@@ -3780,7 +3839,8 @@ function resumenActividadPublicadaUnidad(p) {
     registros: 0,
     totalAtenciones: 0,
     totalMinutos: 0,
-    ultimaFecha: null
+    ultimaFecha: null,
+    fechasActividad: []
   };
 }
 
@@ -3799,7 +3859,10 @@ function estadoAtencionesPublicadaUnidad(p) {
 
   const r = resumenActividadPublicadaUnidad(p);
 
-  if (!r.registros || !r.totalAtenciones) return "SIN";
+  if (!r.registros) return "SIN";
+
+  const pendientes = fechasQuincenalesPendientesV2(p, r.fechasActividad);
+  if (pendientes.length) return "DESACTUALIZADAS";
 
   const umbral = umbralDesactualizadaUnidad(p);
   const dias = diasDesdeFechaResumenUnidad(r.ultimaFecha);
@@ -3828,7 +3891,8 @@ async function cargarActividadResumenUnidad(lista) {
       registros: 0,
       totalAtenciones: 0,
       totalMinutos: 0,
-      ultimaFecha: null
+      ultimaFecha: null,
+      fechasActividad: []
     });
   }
 
@@ -3855,7 +3919,8 @@ async function cargarActividadResumenUnidad(lista) {
         registros: 0,
         totalAtenciones: 0,
         totalMinutos: 0,
-        ultimaFecha: null
+        ultimaFecha: null,
+        fechasActividad: []
       };
 
       actual.registros += 1;
@@ -3863,6 +3928,7 @@ async function cargarActividadResumenUnidad(lista) {
       actual.totalMinutos += Number(r.tiempo_total_minutos || 0);
 
       const fecha = r.fecha_actividad || null;
+      if (fecha) actual.fechasActividad.push(String(fecha).slice(0, 10));
       if (fecha && (!actual.ultimaFecha || String(fecha) > String(actual.ultimaFecha))) {
         actual.ultimaFecha = fecha;
       }
