@@ -3783,15 +3783,107 @@ function idPublicadaResumenUnidad(p) {
  * Fecha de inicio es ancla solo si coincide con el único día semanal programado.
  * Si no hay ancla, se infiere el ciclo desde el primer registro de ese día,
  * sin poder detectar incumplimientos anteriores a tal registro.
- * No interpreta calendarios ordinales ni múltiples días.
+ * Con V4 interpreta ordinales mensuales de un solo día; no múltiples días.
  */
+/*
+ * ITINERANCIAS_ORDINALES_MENSUALES_V4
+ * Calendarios del tipo «2º y 4º miércoles»: la posición se calcula
+ * dentro de CADA mes. Devuelve null cuando no hay ordinales y [] cuando
+ * hay un calendario ordinal ambiguo que no debemos adivinar.
+ * No altera la regla previa de «jueves cada 14 días».
+ */
+function fechasOrdinalesPendientesItineranciasV4(publicada, fechasActividad, hoyPruebaISO, horario) {
+  const patronOrdinal = /\b(\d+)\s*\.?\s*(?:º|ª|°|er|ro|do|to|o|a)(?![a-z0-9])|\b(primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|quint[oa]|ultim[oa])\b/g;
+  const encontrados = [...horario.matchAll(patronOrdinal)];
+  if (!encontrados.length) {
+    // Una expresión numérica de posición sin sufijo es ambigua.
+    return /\b[1-5]\s*(?:y|,)\s*[1-5]\b/.test(horario) ? [] : null;
+  }
+
+  const dias = horario.match(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/g) || [];
+  if (dias.length !== 1) return [];
+  const diaSemana = {domingo:0, lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6}[dias[0]];
+  // Rechazamos formatos de intervalo («del 2º al 4º») o posiciones > 5.
+  if (/\b(?:al|hasta)\b/.test(horario)) return [];
+  const nombres = {primer:1, primero:1, primera:1, segundo:2, segunda:2,
+    tercer:3, tercero:3, tercera:3, cuarto:4, cuarta:4,
+    quinto:5, quinta:5, ultimo:0, ultima:0};
+  const posiciones = encontrados.map(m => m[1] !== undefined ? Number(m[1]) : nombres[m[2]]);
+  if (posiciones.some(n => n === undefined || n > 5 || n < 0)) return [];
+  const ordinales = [...new Set(posiciones)];
+
+  const MS_DIA = 86400000;
+  const fechaValida = valor => {
+    const iso = String(valor || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+    const [a, m, d] = iso.split('-').map(Number);
+    const ms = Date.UTC(a, m - 1, d);
+    return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === iso ? ms : null;
+  };
+  const fechaISO = ms => new Date(ms).toISOString().slice(0, 10);
+  const ahora = new Date();
+  const hoyLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+  const hoy = fechaValida(hoyPruebaISO || hoyLocal);
+  if (hoy === null) return [];
+  const inicio = fechaValida(publicada?.fecha_inicio);
+  const fin = fechaValida(publicada?.fecha_fin);
+  if (fin !== null && inicio !== null && fin < inicio) return [];
+  const registradas = new Set((Array.isArray(fechasActividad) ? fechasActividad : [])
+    .map(x => String(x || '').slice(0, 10))
+    .filter(x => fechaValida(x) !== null));
+
+  const diaMensual = (ano, mes, ordinal) => {
+    const primero = Date.UTC(ano, mes, 1);
+    const ultimoDia = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+    if (ordinal === 0) {
+      const ultimoDiaSemana = new Date(Date.UTC(ano, mes, ultimoDia)).getUTCDay();
+      return ultimoDia - (ultimoDiaSemana - diaSemana + 7) % 7;
+    }
+    const primerDiaSemana = new Date(primero).getUTCDay();
+    const dia = 1 + (diaSemana - primerDiaSemana + 7) % 7 + 7 * (ordinal - 1);
+    return dia <= ultimoDia ? dia : null;
+  };
+
+  // Sin fecha_inicio no se pueden inferir faltas anteriores al primer
+  // registro que coincida con el calendario ordinal.
+  let ancla = inicio;
+  if (ancla === null) {
+    const candidatas = [...registradas].sort().map(fechaValida).filter(ms => ms !== null);
+    ancla = candidatas.find(ms => {
+      const d = new Date(ms);
+      return ordinales.some(n => diaMensual(d.getUTCFullYear(), d.getUTCMonth(), n) === d.getUTCDate());
+    }) ?? null;
+  }
+  if (ancla === null || ancla >= hoy) return [];
+  const limite = fin === null ? hoy - MS_DIA : Math.min(hoy - MS_DIA, fin);
+  const anclaDate = new Date(ancla);
+  const pendientes = [];
+  for (let i = 0; i < 1200; i++) {
+    const mes = new Date(Date.UTC(anclaDate.getUTCFullYear(), anclaDate.getUTCMonth() + i, 1));
+    if (mes.getTime() > limite) break;
+    const ano = mes.getUTCFullYear();
+    const mesN = mes.getUTCMonth();
+    const fechasDelMes = ordinales.map(n => diaMensual(ano, mesN, n))
+      .filter(n => n !== null).map(d => Date.UTC(ano, mesN, d)).sort((a,b) => a-b);
+    for (const fecha of new Set(fechasDelMes)) {
+      if (fecha < ancla || fecha > limite) continue;
+      const iso = fechaISO(fecha);
+      if (!registradas.has(iso)) pendientes.push(iso);
+    }
+  }
+  return pendientes;
+}
+
 function fechasQuincenalesPendientesV2(publicada, fechasActividad, hoyPruebaISO = null) {
   const normalizar = valor => String(valor || "")
     .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const frecuencia = normalizar(publicada?.frecuencia);
   if (!frecuencia.includes("quinc")) return [];
   const horario = normalizar(publicada?.horario || publicada?.dias);
-  if (/(?:\b[1-5]\s*(?:er|o|a|º|ª)\b|\bprimer\b|\bsegund[oa]\b|\btercer\b|\bcuart[oa]\b|\bultim[oa]\b)/.test(horario)) return [];
+  const ordinalesV4 = fechasOrdinalesPendientesItineranciasV4(publicada, fechasActividad, hoyPruebaISO, horario);
+  if (ordinalesV4 !== null) return ordinalesV4;
+  // Ante formatos ordinales desconocidos, evitar avisos de 14 días erróneos.
+  if (/\b\d+\s*\.?\s*(?:º|ª|°|er|ro|do|to|o|a)(?![a-z0-9])|\b(?:primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|quint[oa]|ultim[oa])\b/.test(horario)) return [];
   const dias = horario.match(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/g) || [];
   if (dias.length !== 1) return [];
   const diaSemana = {domingo:0, lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6}[dias[0]];
