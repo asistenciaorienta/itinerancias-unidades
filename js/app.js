@@ -3874,7 +3874,41 @@ function fechasOrdinalesPendientesItineranciasV4(publicada, fechasActividad, hoy
   return pendientes;
 }
 
+/* ITINERANCIAS_GESTION_UNIDAD_FRONT_V5_2
+ * Solo fechas/estado de gestiones: información pública administrativa oculta
+ * por permisos de columnas y políticas RLS en Supabase.
+ */
+let avisosGestionadosUnidadCacheV5 = new Map();
+
+async function cargarAvisosGestionadosUnidadV5(ids) {
+  const nuevo = new Map();
+  for (let i = 0; i < ids.length; i += 60) {
+    const lote = ids.slice(i, i + 60);
+    const {data, error} = await supabaseClient
+      .from('itinerancias_avisos_gestion')
+      .select('itinerancia_publicada_id,fecha_prevista,estado')
+      .eq('estado', 'GESTIONADO')
+      .in('itinerancia_publicada_id', lote);
+    if (error) {
+      console.error('RLS/consulta de fechas gestionadas V5', error);
+      throw new Error('No se han podido cargar las fechas gestionadas; el estado de seguimiento no está disponible.');
+    }
+    for (const g of data || []) {
+      const id = String(g.itinerancia_publicada_id || '');
+      if (!nuevo.has(id)) nuevo.set(id, new Set());
+      nuevo.get(id).add(String(g.fecha_prevista || '').slice(0,10));
+    }
+  }
+  avisosGestionadosUnidadCacheV5 = nuevo;
+}
+
 function fechasQuincenalesPendientesV2(publicada, fechasActividad, hoyPruebaISO = null) {
+  const todas = fechasQuincenalesBaseV5(publicada, fechasActividad, hoyPruebaISO);
+  const gestionadas = avisosGestionadosUnidadCacheV5.get(String(publicada?.id || '')) || new Set();
+  return todas.filter(fecha => !gestionadas.has(fecha));
+}
+
+function fechasQuincenalesBaseV5(publicada, fechasActividad, hoyPruebaISO = null) {
   const normalizar = valor => String(valor || "")
     .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const frecuencia = normalizar(publicada?.frecuencia);
@@ -3986,6 +4020,9 @@ function estadoAtencionesPublicadaUnidad(p) {
   const pendientes = fechasQuincenalesPendientesV2(p, r.fechasActividad);
   if (pendientes.length) return "DESACTUALIZADAS";
 
+  if (avisosGestionadosUnidadCacheV5.get(String(p.id))?.size &&
+      r.registros && String(p.frecuencia || '').toLowerCase().includes('quinc')) return "RECIENTES";
+
   const umbral = umbralDesactualizadaUnidad(p);
   const dias = diasDesdeFechaResumenUnidad(r.ultimaFecha);
 
@@ -4006,6 +4043,7 @@ async function cargarActividadResumenUnidad(lista) {
   const key = ids.slice().sort().join("|");
 
   actividadResumenUnidadCache = new Map();
+  avisosGestionadosUnidadCacheV5 = new Map();
   actividadResumenUnidadListaCargadaKey = "";
 
   for (const id of ids) {
@@ -4059,6 +4097,7 @@ async function cargarActividadResumenUnidad(lista) {
     }
   }
 
+  await cargarAvisosGestionadosUnidadV5(ids);
   actividadResumenUnidadListaCargadaKey = key;
 }
 
